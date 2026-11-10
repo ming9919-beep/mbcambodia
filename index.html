@@ -1,0 +1,932 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <script>
+      (function() {
+        if ('serviceWorker' in navigator) {
+          navigator.serviceWorker.getRegistrations().then(function(registrations) {
+            for (var reg of registrations) reg.unregister();
+          });
+        }
+        if ('caches' in window) {
+          caches.keys().then(function(names) {
+            for (var name of names) caches.delete(name);
+          });
+        }
+      })();
+    </script>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1" />
+    <title>MB Cambodia</title>
+    <meta name="description" content="MB Cambodia mobile banking experience for account overview, transfers, and QR payments." />
+    <meta name="application-name" content="MB Cambodia" />
+    <meta name="theme-color" content="#0877ef" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="MB Cambodia" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="robots" content="index, follow" />
+    <meta property="og:title" content="MB Cambodia" />
+    <meta property="og:description" content="MB Cambodia mobile banking experience for account overview, transfers, and QR payments." />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="MB Cambodia" />
+    <meta name="twitter:description" content="MB Cambodia mobile banking experience for account overview, transfers, and QR payments." />
+    <link rel="icon" type="image/png" sizes="192x192" href="./app-icon-192.png" />
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <link rel="apple-touch-icon" sizes="180x180" href="./apple-touch-icon.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script defer src="./assets/index-tGulQzRr.js?v=2"></script>
+    <link rel="stylesheet" href="./assets/index-BIeGMN93.css">
+    <link rel="stylesheet" href="./scan.css?v=99">
+    <link rel="stylesheet" href="./pay-flow.css?v=99">
+    <link rel="stylesheet" href="./account.css?v=7">
+    <link rel="stylesheet" href="./referral.css?v=1">
+    <link rel="stylesheet" href="./notifications.css?v=3">
+    <link rel="stylesheet" href="./settings.css?v=1">
+    <link rel="stylesheet" href="./pwa-install.css">
+  </head>
+  <body>
+    <div id="root"></div>
+
+    <main id="qr-scan" role="dialog" aria-modal="true" aria-label="Scan QR" aria-hidden="true">
+      <div class="qr-camera-scene" aria-hidden="true">
+        <div class="scene-shadow scene-shadow--left"></div>
+        <div class="scene-object"></div>
+        <div class="scene-table"></div>
+        <div class="scene-light"></div>
+        <div class="scene-vignette"></div>
+      </div>
+
+      <header class="qr-header">
+        <button class="back-button" type="button" aria-label="Go back">
+          <svg width="25" height="25" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               stroke-width="2.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M19 12H5" />
+            <path d="M12 19l-7-7 7-7" />
+          </svg>
+        </button>
+        <h1>Scan to Pay</h1>
+        <button class="header-icon" id="qr-flash" type="button" aria-pressed="false" aria-label="Toggle flashlight">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M13 2L4.5 13.5h6L10 22l8.5-11.5h-6L13 2z" />
+          </svg>
+          <span class="flash-state" id="qr-flash-state" aria-live="polite" hidden></span>
+        </button>
+      </header>
+
+      <section class="scanner-content" aria-label="QR code scanner">
+        <div class="qr-frame" aria-label="QR code alignment frame">
+          <div class="frame-empty-state" aria-hidden="true"></div>
+          <video class="camera-video" id="qr-camera" playsinline muted autoplay aria-hidden="true"></video>
+          <div class="scan-laser" aria-hidden="true"></div>
+          <div class="selected-image" id="qr-selected" hidden>
+            <img id="qr-selected-img" alt="" />
+            <div class="selected-image-label">Image ready to scan</div>
+          </div>
+          <span class="qr-corner qr-corner--tl"></span>
+          <span class="qr-corner qr-corner--tr"></span>
+          <span class="qr-corner qr-corner--bl"></span>
+          <span class="qr-corner qr-corner--br"></span>
+        </div>
+
+        <p class="scanner-instruction" id="qr-instruction">Align frame with QR code</p>
+        <p class="camera-hint" id="qr-camera-hint" hidden></p>
+
+        <div class="scanner-actions">
+          <button class="scanner-action scanner-action--icon" id="qr-upload" type="button">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                 stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <rect x="3" y="3" width="18" height="18" rx="2.5" />
+              <circle cx="8.5" cy="8.5" r="1.6" />
+              <path d="M4 17l5-5 4 4 3-3 4 4" />
+            </svg>
+            <span>Gallery</span>
+          </button>
+          <input class="file-input" id="qr-file" type="file" accept="image/*" aria-label="Choose a QR code image" />
+          <button class="scanner-action scanner-action--icon" id="qr-sample" type="button" title="Test scan with demo Bakong KHQR">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                 stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
+            </svg>
+            <span>Sample QR</span>
+          </button>
+          <button class="scanner-action scanner-action--icon" id="qr-myqr" type="button">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                 stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <rect x="3" y="3" width="7" height="7" rx="1" />
+              <rect x="14" y="3" width="7" height="7" rx="1" />
+              <rect x="3" y="14" width="7" height="7" rx="1" />
+              <path d="M14 14h3v3h-3z" />
+              <path d="M21 14v7H14" />
+            </svg>
+            <span>My QR Code</span>
+          </button>
+        </div>
+
+        <p class="selected-file" id="qr-selected-file" role="status" hidden>
+          <span class="file-indicator" aria-hidden="true"></span>
+          <span class="selected-file-name" id="qr-selected-name"></span>
+        </p>
+      </section>
+
+      <footer class="payment-support">
+        <p>Support payment:</p>
+        <div class="provider-marks" aria-label="KHQR and ATM MB Cambodia">
+          <img class="provider-logo-image" src="./payment-providers.png" alt="KHQR and ATM MB Cambodia" />
+        </div>
+      </footer>
+
+      <div class="system-home-indicator" aria-hidden="true"><span></span></div>
+      <div class="scan-toast" id="qr-toast" role="status" aria-live="polite"></div>
+
+      <!-- KHQR payment flow: bill (KM) -> confirm (KM) -> success (VI) -->
+      <section id="pay-flow" aria-hidden="true" aria-label="KHQR payment">
+
+        <!-- step 1: bill / payment detail (Khmer) -->
+        <div class="pf-screen bill-screen" id="pf-step-amount" data-step="amount">
+          <button class="bill-back" type="button" aria-label="Back to scanner" data-bill-back>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>
+          </button>
+
+          <div class="bill-body">
+            <div class="bill-avatar" id="bill-avatar" aria-hidden="true">
+              <svg width="27" height="27" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M12 3.6L20 9.8H4z"/><path d="M6 13v8"/><path d="M10 13v8"/><path d="M14 13v8"/><path d="M18 13v8"/></svg>
+            </div>
+            <p class="bill-target-label" style="font-size: 12px; color: #64748b; text-transform: uppercase; letter-spacing: 0.8px; margin: 0 0 4px; text-align: center; font-weight: 600;">To / Recipient</p>
+            <h1 class="bill-name" id="pf-merchant">CHAN DARA</h1>
+            <p class="bill-bank" id="pf-bill-bank"></p>
+
+            <p class="bill-caption">&#x1785;&#x17C6;&#x1793;&#x17BD;&#x1791;&#x17B9;&#x1780;&#x1794;&#x17D2;&#x179A;&#x17B6;&#x1780;&#x17CB;</p>
+            <div class="bill-amount">
+              <input class="bill-amount-input" id="pf-amount" inputmode="decimal" placeholder="0.00" aria-label="Payment amount" autocomplete="off" />
+              <span class="bill-cur" id="pf-cur">USD</span>
+            </div>
+
+            <p class="bill-hint" id="pf-amount-hint" role="status" aria-live="polite" hidden></p>
+
+            <div class="bill-hr" aria-hidden="true"></div>
+
+            <p class="bill-section">&#x1796;&#x17B8;</p>
+            <div class="bill-card">
+              <p class="bill-acc-name" id="pf-from-name">SOKHA CHAN</p>
+              <p class="bill-acc-num" id="pf-from-account"></p>
+              <div class="bill-acc-row">
+                <p class="bill-acc-bal" id="pf-from-balance"></p>
+                <button class="bill-change" type="button" id="pf-change-account" aria-haspopup="dialog" aria-controls="pf-account-picker" aria-expanded="false">
+                  Change
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+                </button>
+              </div>
+            </div>
+
+            <div class="bill-card bill-card--note">
+              <p class="bill-note-label">&#x1796;&#x17B7;&#x1796;&#x1793;&#x17D2;&#x1793;&#x17B6;</p>
+              <input class="bill-note-input" id="pf-note" maxlength="80" placeholder="SOKHA CHAN transfer" autocomplete="off" />
+            </div>
+          </div>
+
+<div class="bill-foot">
+            <button class="bill-btn" id="pf-next" type="button" disabled>&#x1794;&#x1793;&#x17D2;&#x178F;</button>
+          </div>
+        </div>
+
+        <div class="account-picker" id="pf-account-picker" aria-hidden="true">
+          <button class="account-picker-scrim" type="button" data-account-picker-close aria-label="Close account selection"></button>
+          <section class="account-picker-sheet" role="dialog" aria-modal="true" aria-labelledby="pf-account-picker-title">
+            <span class="account-picker-handle" aria-hidden="true"></span>
+            <header class="account-picker-header">
+              <div>
+                <p>PAY FROM</p>
+                <h2 id="pf-account-picker-title">Choose an account</h2>
+              </div>
+              <button class="account-picker-close" type="button" data-account-picker-close aria-label="Close">×</button>
+            </header>
+            <div class="account-picker-list" id="pf-account-picker-list" role="listbox" aria-label="Payment accounts"></div>
+          </section>
+        </div>
+
+        <!-- step 2: transaction confirmation -->
+        <div class="pf-screen cf-screen" id="pf-step-confirm" data-step="confirm" hidden>
+          <header class="cf-header">
+            <button class="cf-header-action" type="button" aria-label="Back" data-confirm-back>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>
+            </button>
+            <h1>Transaction confirmation</h1>
+            <button class="cf-header-action" id="pf-confirm-home" type="button" aria-label="Home">
+              <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z"/></svg>
+            </button>
+          </header>
+
+          <div class="cf-body">
+            <p class="cf-caption">TRANSFER AMOUNT</p>
+            <p class="cf-amount">
+              <span id="pf-confirm-amount">0.00</span>
+              <span class="cf-cur" id="pf-confirm-cur">USD</span>
+              <span class="cf-usd" id="pf-confirm-usd"></span>
+            </p>
+
+            <div class="cf-card">
+              <p class="cf-mini">From</p>
+              <div class="cf-party">
+                <span class="cf-mark cf-mark--mb-logo has-logo" aria-hidden="true">
+                  <img src="./assets/banks/mb-confirmation.webp" alt="" />
+                </span>
+                <div>
+                  <p class="cf-party-name" id="pf-confirm-from-name">SOKHA CHAN</p>
+                  <p class="cf-party-sub" id="pf-sum-from"></p>
+                </div>
+              </div>
+              <div class="cf-divider" aria-hidden="true"></div>
+              <p class="cf-mini">To</p>
+              <div class="cf-party">
+                <span class="cf-mark cf-mark--bank" id="pf-confirm-to-mark" aria-hidden="true">A</span>
+                <div>
+                  <p class="cf-party-name" id="pf-confirm-merchant">Merchant</p>
+                  <p class="cf-party-sub" id="pf-confirm-bank">Recipient account</p>
+                </div>
+              </div>
+            </div>
+
+            <div class="cf-card cf-details">
+              <div class="cf-row"><span>Transaction fee</span><span>0.00 <span id="pf-fee-cur">USD</span></span></div>
+              <div class="cf-row"><span>Debit amount</span><span id="pf-sum-total"></span></div>
+              <div class="cf-row"><span>Description</span><span id="pf-confirm-note"></span></div>
+            </div>
+
+            <p class="pf-status" id="pf-status" role="status" aria-live="polite" hidden></p>
+          </div>
+
+          <div class="bill-foot">
+            <button class="bill-btn" id="pf-confirm" type="button">Confirm</button>
+          </div>
+        </div>
+
+        <div class="otp-overlay" id="pf-otp" aria-hidden="true">
+          <button class="otp-scrim" type="button" data-otp-close aria-label="Cancel Digital OTP"></button>
+          <section class="otp-sheet" role="dialog" aria-modal="true" aria-labelledby="pf-otp-title">
+            <span class="otp-handle" aria-hidden="true"></span>
+            <div class="otp-illustration" aria-hidden="true">
+              <svg viewBox="0 0 180 150" fill="none">
+                <path d="M87 12h53a12 12 0 0 1 12 14l-17 104a13 13 0 0 1-14 11l-47-7a12 12 0 0 1-10-14L79 22a12 12 0 0 1 8-10Z" fill="#1680F6" stroke="#0875E8" stroke-width="5"/>
+                <path d="M84 24h52l-16 96-49-7 13-89Z" fill="#DDF4FC"/>
+                <path d="m40 35 78 3a9 9 0 0 1 8 11l-13 51a10 10 0 0 1-11 8l-75-6a9 9 0 0 1-8-11l11-49a10 10 0 0 1 10-7Z" fill="#0875E8"/>
+                <circle cx="36" cy="62" r="4" fill="#fff"/><circle cx="51" cy="63" r="4" fill="#fff"/>
+                <circle cx="66" cy="64" r="4" fill="#fff"/><circle cx="81" cy="65" r="4" fill="#fff"/>
+                <circle cx="96" cy="66" r="4" fill="#fff"/><circle cx="111" cy="67" r="4" fill="#fff"/>
+                <path d="m81 111 28 4M77 122l27 4" stroke="#69C9EE" stroke-width="5" stroke-linecap="round"/>
+              </svg>
+            </div>
+            <h2 id="pf-otp-title">Enter your PIN Digital OTP</h2>
+            <div class="otp-dots" id="pf-otp-dots" aria-label="0 of 6 PIN digits entered">
+              <span data-otp-dot></span><span data-otp-dot></span><span data-otp-dot></span>
+              <span data-otp-dot></span><span data-otp-dot></span><span data-otp-dot></span>
+            </div>
+            <p class="otp-error" id="pf-otp-error" role="status" aria-live="polite" hidden></p>
+            <button class="otp-forgot" id="pf-otp-forgot" type="button">Forgot PIN Digital OTP?</button>
+            <div class="otp-done-row">
+              <button id="pf-otp-done" type="button">Done</button>
+            </div>
+            <div class="otp-keypad" role="group" aria-label="Digital OTP keypad">
+              <button class="otp-key" type="button" data-otp-digit="1"><span>1</span></button>
+              <button class="otp-key" type="button" data-otp-digit="2"><span>2</span><small>ABC</small></button>
+              <button class="otp-key" type="button" data-otp-digit="3"><span>3</span><small>DEF</small></button>
+              <button class="otp-key" type="button" data-otp-digit="4"><span>4</span><small>GHI</small></button>
+              <button class="otp-key" type="button" data-otp-digit="5"><span>5</span><small>JKL</small></button>
+              <button class="otp-key" type="button" data-otp-digit="6"><span>6</span><small>MNO</small></button>
+              <button class="otp-key" type="button" data-otp-digit="7"><span>7</span><small>PQRS</small></button>
+              <button class="otp-key" type="button" data-otp-digit="8"><span>8</span><small>TUV</small></button>
+              <button class="otp-key" type="button" data-otp-digit="9"><span>9</span><small>WXYZ</small></button>
+              <span class="otp-key-spacer" aria-hidden="true"></span>
+              <button class="otp-key" type="button" data-otp-digit="0"><span>0</span></button>
+              <button class="otp-key otp-key-delete" type="button" data-otp-delete aria-label="Delete last digit">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5H20v14H9l-6-7 6-7Z"/><path d="m12 9 5 6m0-6-5 6"/></svg>
+              </button>
+            </div>
+            <span class="otp-home-indicator" aria-hidden="true"></span>
+          </section>
+        </div>
+
+        <!-- step 3: transaction receipt -->
+        <div class="pf-screen su-screen" id="pf-step-success" data-step="success" hidden>
+          <div class="su-body">
+            <div class="su-brand" aria-hidden="true">
+              <img src="./assets/aistudio/mbbank-logo-removebg-preview_9ff612dc.png" alt="MB Cambodia" />
+            </div>
+            <div class="su-badge" aria-hidden="true">
+              <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+            </div>
+            <h2 class="su-title">Transaction Completed Successfully</h2>
+            <p class="su-amount" id="pf-success-amount">0.00 USD</p>
+            <p class="su-time" id="pf-success-time"></p>
+
+            <div class="su-parties">
+              <div class="su-party">
+                <span class="su-mark su-mark--ref su-mark--brand" id="pf-success-from-mark" role="img" aria-label="MB Bank"></span>
+                <p class="su-party-name" id="pf-success-from-name">SOKHA CHAN</p>
+                <p class="su-party-sub" id="pf-success-from"></p>
+              </div>
+              <div class="su-arrows" aria-hidden="true">
+                <svg viewBox="0 0 40 24" fill="none">
+                  <path d="M2 12h31m-8-8 8 8-8 8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  <path d="M8 5h6M8 19h6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" opacity=".55"/>
+                </svg>
+              </div>
+              <div class="su-party">
+                <span class="su-mark su-mark--bank" id="pf-success-bank-mark" aria-hidden="true">A</span>
+                <p class="su-party-name" id="pf-success-merchant">Merchant</p>
+                <p class="su-party-sub" id="pf-success-bank">Bakong member bank</p>
+              </div>
+            </div>
+
+            <div class="su-detail">
+              <div class="su-row"><span>Transaction code</span><span id="pf-success-ref"></span></div>
+              <div class="su-row">
+                <span>External Txn Ref</span>
+                <span class="su-ref">
+                  <b id="pf-success-tx"></b>
+                  <button class="su-copy" id="pf-copy-ref" type="button" aria-label="Copy reference">
+                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>
+                  </button>
+                </span>
+              </div>
+              <div class="su-row"><span>Receiver bank</span><span id="pf-success-bank-short"></span></div>
+              <div class="su-row"><span>Description</span><span id="pf-success-note"></span></div>
+            </div>
+
+            <div class="su-actions">
+              <button class="su-action" id="pf-action-new" type="button">
+                <span class="su-action-ico" aria-hidden="true">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h13"/><path d="M12 2l5 5-5 5"/><path d="M20 17H7"/><path d="M12 22l-5-5 5-5"/></svg>
+                </span>
+                <span>Other Transaction</span>
+              </button>
+              <button class="su-action" id="pf-action-shot" type="button">
+                <span class="su-action-ico" aria-hidden="true">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M8 9h8M8 13h8M8 17h4"/></svg>
+                </span>
+                <span>Screenshot</span>
+              </button>
+              <button class="su-action" id="pf-share" type="button">
+                <span class="su-action-ico" aria-hidden="true">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 10.7l6.8-4.2M8.6 13.3l6.8 4.2"/></svg>
+                </span>
+                <span>Share</span>
+              </button>
+            </div>
+
+          </div>
+
+          <div class="bill-foot">
+            <button class="su-btn" id="pf-done" type="button">Done</button>
+          </div>
+        </div>
+      </section>
+
+    </main>
+      <!-- my KHR QR (receive) -->
+      <div class="myqr" id="myqr" aria-hidden="true">
+        <header class="myqr-header">
+          <button class="myqr-icon-btn" id="myqr-back" type="button" aria-label="Back">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+          </button>
+          <h1 class="myqr-title">My KHR QR</h1>
+          <button class="myqr-icon-btn" id="myqr-home" type="button" aria-label="Home">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9.5 12 3l9 6.5"/><path d="M5 10v10h14V10"/></svg>
+          </button>
+        </header>
+        <main class="myqr-body">
+          <p class="myqr-label">SELECT RECEIVING ACCOUNT:</p>
+          <div class="myqr-accounts" id="myqr-accounts"></div>
+
+          <div class="myqr-khqr-card" id="myqr-khqr-card">
+            <div class="myqr-khqr-band"><span class="myqr-khqr-wordmark">KHR<em>QR</em></span></div>
+            <p class="myqr-name" id="myqr-name">SOKHA CHAN</p>
+            <div class="myqr-dashed"></div>
+            <div class="myqr-box">
+              <img id="myqr-img" alt="My KHQR code" src="./assets/myqr-sokha-chan.png" />
+              <p class="myqr-loading" id="myqr-loading" hidden>Generating…</p>
+            </div>
+          </div>
+
+          <div class="myqr-actions">
+            <button class="myqr-action" id="myqr-share" type="button" aria-label="Share">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.6 13.5 6.8 4"/><path d="m15.4 6.5-6.8 4"/></svg>
+            </button>
+            <button class="myqr-action" id="myqr-download" type="button" aria-label="Download">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg>
+            </button>
+          </div>
+          <p class="myqr-status" id="myqr-status" role="status" aria-live="polite"></p>
+        </main>
+      </div>
+
+
+      <!-- account detail (transactions) -->
+      <div class="acd-page" id="account-detail" aria-hidden="true" role="dialog" aria-modal="true" aria-label="Detail Account">
+        <header class="acd-header">
+          <button class="acd-icon-btn" id="acd-back" type="button" aria-label="Back">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+          </button>
+          <h1 class="acd-title">Detail Account</h1>
+          <button class="acd-icon-btn" id="acd-refresh" type="button" aria-label="Refresh transactions">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.6-6.4"/><path d="M21 3v6h-6"/></svg>
+          </button>
+        </header>
+        <section class="acd-hero">
+          <div class="acd-pill-wrap">
+            <button class="acd-pill" id="acd-pill" type="button" aria-haspopup="listbox" aria-expanded="false">
+              <span id="acd-pill-label">Account: 000000000000</span>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+            </button>
+            <div class="acd-menu" id="acd-menu" role="listbox" aria-label="Choose account" hidden></div>
+          </div>
+          <p class="acd-balance" id="acd-balance">0 USD</p>
+        </section>
+        <section class="acd-body">
+          <div class="acd-body-head">
+            <h2 class="acd-section-title">Recent Transaction</h2>
+            <button class="acd-more" id="acd-more" type="button">See more
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+            </button>
+          </div>
+          <ul class="acd-list" id="acd-list"></ul>
+          <p class="acd-empty" id="acd-empty" hidden>No transactions yet</p>
+          <p class="acd-note" id="acd-note" hidden>Sample transactions · demo data</p>
+        </section>
+        <footer class="acd-foot">
+          <button class="acd-export" id="acd-export" type="button">Export Statement</button>
+        </footer>
+        <div class="acd-toast" id="acd-toast" role="status" aria-live="polite"></div>
+      </div>
+      <div class="txd-page" id="transaction-detail" aria-hidden="true" role="dialog" aria-modal="true" aria-label="Transaction details">
+        <header class="txd-header">
+          <button class="txd-icon-btn" id="txd-back" type="button" aria-label="Back to transactions">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+          </button>
+          <h1 class="txd-title">Transaction details</h1>
+          <button class="txd-icon-btn" id="txd-home" type="button" aria-label="Back to home">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/></svg>
+          </button>
+        </header>
+        <main class="txd-content">
+          <section class="txd-summary">
+            <p class="txd-label">Amount</p>
+            <p class="txd-amount" id="txd-amount">0.00 USD</p>
+          </section>
+          <section class="txd-parties" aria-label="Transaction parties">
+            <div class="txd-party">
+              <span class="txd-mark" id="txd-from-mark" aria-hidden="true">MB<small>Cambodia</small></span>
+              <div class="txd-party-copy">
+                <span class="txd-label" id="txd-from-label">From</span>
+                <strong id="txd-from-name">-</strong>
+                <small id="txd-from-account">-</small>
+              </div>
+            </div>
+            <div class="txd-party">
+              <span class="txd-mark" id="txd-to-mark" aria-hidden="true">MB<small>Cambodia</small></span>
+              <div class="txd-party-copy">
+                <span class="txd-label" id="txd-to-label">To</span>
+                <strong id="txd-to-name">-</strong>
+                <small id="txd-to-account">-</small>
+              </div>
+            </div>
+          </section>
+          <section class="txd-info" aria-label="Transaction record">
+            <div class="txd-info-row">
+              <span>Status</span>
+              <strong id="txd-status">-</strong>
+            </div>
+            <div class="txd-info-row">
+              <span>Transfer amount</span>
+              <strong id="txd-transfer-amount">-</strong>
+            </div>
+            <div class="txd-info-row">
+              <span>Transaction time</span>
+              <strong id="txd-time">-</strong>
+            </div>
+            <div class="txd-info-row">
+              <span>Transaction code</span>
+              <strong id="txd-ref">-</strong>
+            </div>
+            <div class="txd-info-row">
+              <span>External Txn Ref</span>
+              <span class="txd-external-ref">
+                <strong id="txd-external-ref">-</strong>
+                <button id="txd-copy-ref" type="button" aria-label="Copy external transaction reference" disabled>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="8" width="13" height="13" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/></svg>
+                </button>
+              </span>
+            </div>
+            <div class="txd-info-row txd-description-row">
+              <span>Description</span>
+              <strong id="txd-description">-</strong>
+            </div>
+          </section>
+          <button class="txd-share" id="txd-share" type="button">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.6 13.5 6.8 4"/><path d="m15.4 6.5-6.8 4"/></svg>
+            Share
+          </button>
+          <p class="txd-toast" id="txd-toast" role="status" aria-live="polite"></p>
+        </main>
+      </div>
+      <!-- account page (opened from THÊM) -->
+      <div class="acct-page" id="account-page" aria-hidden="true" role="dialog" aria-modal="true" aria-label="Account">
+        <header class="acct-header">
+          <button class="acct-icon-btn" id="acct-back" type="button" aria-label="Back">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+          </button>
+          <h1 class="acct-title">Account</h1>
+          <button class="acct-icon-btn" id="acct-home" type="button" aria-label="Home">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/></svg>
+          </button>
+        </header>
+        <div class="acct-blue">
+          <section class="acct-balance-card">
+            <div class="acct-row">
+              <div>
+                <p class="acct-label">Balance</p>
+                <p class="acct-amount" id="acct-balance-amount">0</p>
+              </div>
+              <div class="acct-currency">
+                <span class="acct-cur-badge khr" aria-hidden="true">&#x17DB;</span>
+                <span>KHR</span>
+              </div>
+            </div>
+            <div class="acct-swap" aria-hidden="true">
+              <span class="acct-swap-ico">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9h13m0 0-3.5-3.5M17 9l-3.5 3.5"/><path d="M20 15H7m0 0 3.5-3.5M7 15l3.5 3.5"/></svg>
+              </span>
+            </div>
+            <div class="acct-row">
+              <div>
+                <p class="acct-label">Exchanged</p>
+                <p class="acct-amount" id="acct-exchange-amount">0</p>
+              </div>
+              <div class="acct-currency">
+                <span class="acct-cur-badge usd" aria-hidden="true">$</span>
+                <span>USD</span>
+              </div>
+            </div>
+          </section>
+        </div>
+        <section class="acct-sheet">
+          <div class="acct-sheet-head">
+            <h2 class="acct-sheet-title" id="acct-list-title">List of Accounts</h2>
+            <button class="acct-add" id="acct-add-btn" type="button">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+              Add
+            </button>
+          </div>
+          <div class="acct-list" id="acct-list"></div>
+
+          <form class="acct-form" id="acct-form" hidden>
+            <h3 class="acct-form-title">New Account</h3>
+            <label class="acct-field">
+              <span>Account holder</span>
+              <input id="acct-f-name" type="text" value="SOKHA CHAN" autocomplete="off" />
+            </label>
+            <div class="acct-field">
+              <span>Account type</span>
+              <div class="acct-seg" id="acct-f-type" role="group" aria-label="Account type">
+                <button type="button" data-value="Payment" class="on">Payment</button>
+                <button type="button" data-value="Savings">Savings</button>
+              </div>
+            </div>
+            <div class="acct-field">
+              <span>Currency</span>
+              <div class="acct-seg" id="acct-f-cur" role="group" aria-label="Currency">
+                <button type="button" data-value="USD" class="on">USD</button>
+                <button type="button" data-value="KHR">KHR</button>
+              </div>
+            </div>
+            <label class="acct-field">
+              <span>Initial balance</span>
+              <input id="acct-f-bal" type="number" min="0" step="0.01" value="0" />
+            </label>
+            <p class="acct-form-err" id="acct-f-err" role="status" aria-live="polite"></p>
+            <div class="acct-form-actions">
+              <button type="button" class="acct-btn ghost" id="acct-f-cancel">Cancel</button>
+              <button type="submit" class="acct-btn primary" id="acct-f-submit">Add Account</button>
+            </div>
+          </form>
+        </section>
+        <div class="acct-toast" id="acct-toast" role="status" aria-live="polite"></div>
+      </div>
+      <main class="referral-page" id="referral-page" aria-hidden="true" aria-label="Referral">
+        <div class="referral-scroll">
+          <section class="referral-hero">
+            <img class="referral-brand" src="./mb-cambodia-logo.png" alt="MB Cambodia" />
+            <div class="referral-hero-copy">
+              <p class="referral-kicker">MB CAMBODIA · REWARDS</p>
+              <h1>Refer Your<br><span>Friends</span></h1>
+              <p class="referral-hero-note">Good things are better when shared.</p>
+            </div>
+            <div class="referral-art" aria-hidden="true">
+              <div class="referral-orbit referral-orbit-one"></div>
+              <div class="referral-orbit referral-orbit-two"></div>
+              <div class="referral-person referral-person-one"><i></i><b></b></div>
+              <div class="referral-person referral-person-two"><i></i><b></b></div>
+              <div class="referral-phone">
+                <span class="referral-phone-speaker"></span>
+                <span class="referral-phone-logo">MB</span>
+                <span class="referral-phone-line"></span>
+                <span class="referral-phone-line short"></span>
+                <span class="referral-phone-button"></span>
+              </div>
+              <span class="referral-coin referral-coin-one">$</span>
+              <span class="referral-coin referral-coin-two">+</span>
+            </div>
+          </section>
+
+          <section class="referral-card" aria-label="Your referral details">
+            <p class="referral-card-intro">Get a referral code and send it to your friends</p>
+            <div class="referral-details">
+              <div class="referral-fields">
+                <label class="referral-field">
+                  <span>Referral link</span>
+                  <span class="referral-input-wrap">
+                    <input id="referral-link" type="text" readonly aria-label="Referral link" />
+                    <button class="referral-copy" type="button" data-copy="link" aria-label="Copy referral link">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/></svg>
+                    </button>
+                  </span>
+                </label>
+                <label class="referral-field">
+                  <span>Referral code</span>
+                  <span class="referral-input-wrap">
+                    <input id="referral-code" type="text" readonly value="06855788" aria-label="Referral code" />
+                    <button class="referral-copy" type="button" data-copy="code" aria-label="Copy referral code">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/></svg>
+                    </button>
+                  </span>
+                </label>
+              </div>
+              <div class="referral-qr-wrap">
+                <div class="referral-qr">
+                  <img id="referral-qr-image" alt="Referral QR code" />
+                  <span class="referral-qr-center">MB</span>
+                </div>
+                <span>Scan QR code</span>
+              </div>
+            </div>
+            <button class="referral-share" id="referral-share" type="button">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.6 10.7 6.8-4.2M8.6 13.3l6.8 4.2"/></svg>
+              Share referral link
+            </button>
+          </section>
+
+          <section class="referral-list">
+            <h2>Referral list <span>(0)</span></h2>
+            <div class="referral-empty" aria-live="polite">
+              <span></span><span></span><span></span>
+              <p>Share your code to invite a friend</p>
+            </div>
+          </section>
+        </div>
+
+        <nav class="referral-nav" aria-label="Main navigation">
+          <button type="button" data-ref-nav="home" aria-label="Home">
+            <svg viewBox="0 0 24 24"><path d="M4 11 12 4l8 7v9h-6v-6h-4v6H4z"/></svg><span>Home</span>
+          </button>
+          <button type="button" class="active" data-ref-nav="referral" aria-current="page" aria-label="Referral">
+            <svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M3.5 20v-1.5A5.5 5.5 0 0 1 9 13h1M16 8v6m-3-3h6"/><circle cx="16" cy="11" r="1"/></svg><span>Referral</span>
+          </button>
+          <button type="button" class="referral-nav-scan" data-ref-nav="scan" aria-label="Scan QR">
+            <svg viewBox="0 0 24 24"><path d="M4 9V5a1 1 0 0 1 1-1h4M15 4h4a1 1 0 0 1 1 1v4M20 15v4a1 1 0 0 1-1 1h-4M9 20H5a1 1 0 0 1-1-1v-4"/><path d="M8 8h8v8H8z"/></svg>
+          </button>
+          <button type="button" data-ref-nav="notifications" aria-label="Notifications">
+            <svg viewBox="0 0 24 24"><path d="M18 9a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/></svg><span>Notifications</span>
+          </button>
+          <button type="button" data-ref-nav="settings" aria-label="Settings">
+            <svg viewBox="0 0 24 24"><path d="M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7Z"/><path d="m19.4 15 .1.1 1.4 1.1-1.4 2.4-1.7-.7a8 8 0 0 1-1.5.9l-.3 1.8h-2.8l-.3-1.8a8 8 0 0 1-1.5-.9l-1.7.7-1.4-2.4 1.4-1.1a7 7 0 0 1 0-1.8l-1.4-1.1 1.4-2.4 1.7.7a8 8 0 0 1 1.5-.9l.3-1.8h2.8l.3 1.8a8 8 0 0 1 1.5.9l1.7-.7 1.4 2.4-1.4 1.1a7 7 0 0 1 0 1.7Z" transform="translate(-1 -2)"/></svg><span>Settings</span>
+          </button>
+        </nav>
+        <div class="referral-toast" id="referral-toast" role="status" aria-live="polite"></div>
+      </main>
+      <main class="notification-page" id="notification-page" aria-hidden="true" aria-label="Notifications">
+        <header class="notification-header">
+          <div class="notification-titlebar">
+            <button class="notification-back" type="button" data-notification-close aria-label="Back">
+              <svg viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg>
+            </button>
+            <h1>Notifications</h1>
+            <button class="notification-home" type="button" data-notification-close aria-label="Home">
+              <svg viewBox="0 0 24 24"><path d="m3 10 9-7 9 7v11h-6v-7H9v7H3z"/></svg>
+            </button>
+          </div>
+        </header>
+        <div class="notification-scroll">
+          <div class="notification-tabs" role="tablist" aria-label="Notification type">
+            <button class="selected" id="notice-tab-general" type="button" role="tab" aria-selected="true" aria-controls="notice-general" data-notice-tab="general">GENERAL</button>
+            <button id="notice-tab-transaction" type="button" role="tab" aria-selected="false" aria-controls="notice-transaction" data-notice-tab="transaction">TRANSACTION</button>
+          </div>
+
+          <section class="notification-panel" id="notice-general" role="tabpanel" aria-labelledby="notice-tab-general">
+            <div id="notice-alert-list" class="notice-alert-list" hidden></div>
+            <article class="notification-card">
+              <h2><span aria-hidden="true">🚨</span> Security Alert: New Device Login</h2>
+              <p>A login from a new device was detected. If this wasn't you, please contact our Hotline immediately.</p>
+              <time datetime="2026-11-01">01/11/2026</time>
+            </article>
+            <article class="notification-card notification-card-km">
+              <h2><span aria-hidden="true">🚨</span> ការជូនដំណឹងសុវត្ថិភាព</h2>
+              <p>មានការចូលប្រើគណនីពីឧបករណ៍ថ្មី។ ប្រសិនបើមិនមែនជាអ្នក សូមទាក់ទងទៅកាន់ Hotline ភ្លាមៗ។</p>
+              <time datetime="2026-11-01">01/11/2026</time>
+            </article>
+            <article class="notification-card">
+              <h2><span aria-hidden="true">🚨</span> Security Alert: New Device Login</h2>
+              <p>A login from a new device was detected. If this wasn't you, please contact our Hotline immediately.</p>
+              <time datetime="2026-10-30">30/10/2026</time>
+            </article>
+            <article class="notification-card notification-card-km">
+              <h2><span aria-hidden="true">🚨</span> ការជូនដំណឹងសុវត្ថិភាព</h2>
+              <p>សូមពិនិត្យមើលសកម្មភាពគណនីរបស់អ្នក។ សូមទាក់ទងទៅកាន់ Hotline ប្រសិនបើអ្នកត្រូវការជំនួយ។</p>
+              <time datetime="2026-10-29">29/10/2026</time>
+            </article>
+          </section>
+
+          <section class="notification-panel" id="notice-transaction" role="tabpanel" aria-labelledby="notice-tab-transaction" hidden>
+            <div id="notice-transaction-list" aria-live="polite"></div>
+            <p class="notification-empty" id="notice-transaction-empty" hidden>No transaction records yet.</p>
+          </section>
+        </div>
+        <nav class="notification-nav" aria-label="Main navigation">
+          <button type="button" data-notification-nav="home" aria-label="Home">
+            <svg viewBox="0 0 24 24"><path d="M4 11 12 4l8 7v9h-6v-6h-4v6H4z"/></svg><span>Home</span>
+          </button>
+          <button type="button" data-notification-nav="referral" aria-label="Referral">
+            <svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M3.5 20v-1.5A5.5 5.5 0 0 1 9 13h1M16 8v6m-3-3h6"/><circle cx="16" cy="11" r="1"/></svg><span>Referral</span>
+          </button>
+          <button type="button" class="notification-nav-scan" data-notification-nav="scan" aria-label="Scan QR">
+            <svg viewBox="0 0 24 24"><path d="M4 9V5a1 1 0 0 1 1-1h4M15 4h4a1 1 0 0 1 1 1v4M20 15v4a1 1 0 0 1-1 1h-4M9 20H5a1 1 0 0 1-1-1v-4"/><path d="M8 8h8v8H8z"/></svg>
+          </button>
+          <button type="button" class="active" aria-current="page" aria-label="Notifications">
+            <svg viewBox="0 0 24 24"><path d="M18 9a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/></svg><span>Notifications</span>
+          </button>
+          <button type="button" data-notification-nav="settings" aria-label="Settings">
+            <svg viewBox="0 0 24 24"><path d="M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7Z"/><path d="m19.4 15 .1.1 1.4 1.1-1.4 2.4-1.7-.7a8 8 0 0 1-1.5.9l-.3 1.8h-2.8l-.3-1.8a8 8 0 0 1-1.5-.9l-1.7.7-1.4-2.4 1.4-1.1a7 7 0 0 1 0-1.8l-1.4-1.1 1.4-2.4 1.7.7a8 8 0 0 1 1.5-.9l.3-1.8h2.8l.3 1.8a8 8 0 0 1 1.5.9l1.7-.7 1.4 2.4-1.4 1.1a7 7 0 0 1 0 1.7Z" transform="translate(-1 -2)"/></svg><span>Settings</span>
+          </button>
+        </nav>
+      </main>
+      <main class="settings-page" id="settings-page" aria-hidden="true" aria-label="Settings">
+        <div class="settings-scroll">
+          <section class="settings-hero">
+            <h1>Settings</h1>
+            <div class="settings-profile">
+              <div class="settings-avatar" aria-hidden="true"><span>✳</span><b>MB</b><small>Cambodia</small></div>
+              <div class="settings-profile-main">
+                <h2>SOKHA CHAN</h2>
+                <div class="settings-verification">
+                  <span class="settings-partial">Partial</span>
+                  <button type="button" id="settings-verify"><span aria-hidden="true">✓</span> Verify Online</button>
+                </div>
+              </div>
+              <svg class="settings-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
+            </div>
+          </section>
+
+          <section class="settings-list">
+            <button class="settings-row" type="button" data-settings-action="Identification Documents">
+              <span class="settings-row-icon"><svg viewBox="0 0 48 48"><rect x="4" y="7" width="40" height="34" rx="6"/><circle cx="16" cy="20" r="5"/><path d="M8 34c1-5 4-7 8-7s7 2 8 7M29 17h10M29 24h10M29 31h7"/></svg></span>
+              <span>Identification Documents</span>
+              <svg class="settings-chevron" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg>
+            </button>
+          </section>
+
+          <h2 class="settings-section-title">Utilities</h2>
+          <section class="settings-list">
+            <div class="settings-row">
+              <span class="settings-row-icon"><svg viewBox="0 0 48 48"><path d="M9 18V9h9M30 9h9v9M39 30v9h-9M18 39H9v-9"/><circle cx="24" cy="21" r="6"/><path d="M16 35c1-5 4-8 8-8s7 3 8 8"/></svg></span>
+              <span>FaceID Auto Login</span>
+              <button class="settings-toggle on" type="button" role="switch" aria-checked="true" aria-label="FaceID Auto Login"><i></i></button>
+            </div>
+            <div class="settings-row">
+              <span class="settings-row-icon"><svg viewBox="0 0 48 48"><rect x="9" y="4" width="30" height="40" rx="6"/><path d="M16 15h16M16 22h16M16 29h16M20 37h8"/></svg></span>
+              <span>In-house Transfer Via Phone Number</span>
+              <button class="settings-toggle on" type="button" role="switch" aria-checked="true" aria-label="In-house Transfer Via Phone Number"><i></i></button>
+            </div>
+            <button class="settings-row" type="button" data-settings-action="Digital OTP">
+              <span class="settings-row-icon"><svg viewBox="0 0 48 48"><rect x="9" y="4" width="30" height="40" rx="6"/><path d="M17 12h14M17 35h14"/><circle cx="17" cy="23" r="2" fill="currentColor"/><circle cx="24" cy="23" r="2" fill="currentColor"/><circle cx="31" cy="23" r="2" fill="currentColor"/></svg></span>
+              <span>Digital OTP</span>
+              <em class="settings-new">✦ New</em>
+              <svg class="settings-chevron" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg>
+            </button>
+            <button class="settings-row" type="button" data-settings-action="Face Authentication Limit">
+              <span class="settings-row-icon"><svg viewBox="0 0 48 48"><path d="M8 17V9h8M32 9h8v8M40 31v8h-8M16 39H8v-8"/><circle cx="24" cy="23" r="9"/><path d="M19 21h.1M29 21h.1M20 27c2 2 6 2 8 0"/></svg></span>
+              <span>Face Authentication Limit</span>
+              <svg class="settings-chevron" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg>
+            </button>
+            <button class="settings-row" type="button" data-settings-action="Easy Payment">
+              <span class="settings-row-icon"><svg viewBox="0 0 48 48"><rect x="5" y="10" width="38" height="29" rx="5"/><path d="M13 20h20M13 28h14"/><path class="settings-icon-accent" d="m34 4-5 9h6l-3 8 9-12h-6l2-5"/></svg></span>
+              <span>Easy Payment</span>
+              <svg class="settings-chevron" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg>
+            </button>
+            <button class="settings-row" type="button" data-settings-action="Unlink Devices">
+              <span class="settings-row-icon"><svg viewBox="0 0 48 48"><rect x="8" y="4" width="32" height="40" rx="6"/><circle cx="24" cy="23" r="11"/><path d="m20 19 8 8m0-8-8 8M21 38h6"/></svg></span>
+              <span>Unlink Devices</span>
+              <svg class="settings-chevron" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg>
+            </button>
+            <button class="settings-row" type="button" data-settings-action="Change Password">
+              <span class="settings-row-icon"><svg viewBox="0 0 48 48"><path d="M10 9H5v30h5M38 9h5v30h-5M17 18h3M27 18h4M17 30h3M27 30h4"/><path d="M24 6v36"/></svg></span>
+              <span>Change Password</span>
+              <svg class="settings-chevron" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg>
+            </button>
+            <button class="settings-row" type="button" data-settings-action="Change Language">
+              <span class="settings-row-icon"><svg viewBox="0 0 48 48"><circle cx="24" cy="24" r="19"/><path d="M5 24h38M24 5c-6 6-9 12-9 19s3 13 9 19M24 5c6 6 9 12 9 19s-3 13-9 19M9 14h30M9 34h30"/></svg></span>
+              <span>Change Language</span>
+              <svg class="settings-chevron" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg>
+            </button>
+          </section>
+
+          <h2 class="settings-section-title">Notifications</h2>
+          <section class="settings-list settings-list-last">
+            <button class="settings-row" type="button" data-settings-action="Push Notification">
+              <span class="settings-row-icon"><svg viewBox="0 0 48 48"><path d="M9 34h30l-4-6V18a11 11 0 0 0-22 0v10zM20 40h8"/></svg></span>
+              <span>Push Notification</span>
+              <svg class="settings-chevron" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg>
+            </button>
+            <button class="settings-row" type="button" data-settings-action="Contact Us">
+              <span class="settings-row-icon"><svg viewBox="0 0 48 48"><circle cx="24" cy="24" r="19"/><path d="M21 18a3 3 0 1 1 5 2c-2 2-2 3-2 6M24 33h.1"/></svg></span>
+              <span>Contact Us</span>
+              <svg class="settings-chevron" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg>
+            </button>
+          </section>
+        </div>
+
+        <div class="settings-language-layer" id="settings-language-layer" aria-hidden="true" hidden>
+          <button class="settings-language-backdrop" type="button" data-language-close aria-label="Close language selection"></button>
+          <section class="settings-language-sheet" role="dialog" aria-modal="true" aria-labelledby="settings-language-title" tabindex="-1">
+            <span class="settings-language-grabber" aria-hidden="true"></span>
+            <header class="settings-language-heading">
+              <div>
+                <p>Preferences</p>
+                <h2 id="settings-language-title">Choose language</h2>
+              </div>
+              <button class="settings-language-x" type="button" data-language-close aria-label="Close">
+                <svg viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></svg>
+              </button>
+            </header>
+            <p class="settings-language-hint">Select your preferred language</p>
+            <div class="settings-language-options" role="radiogroup" aria-label="Available languages">
+              <button class="settings-language-option" type="button" role="radio" aria-checked="false" data-language-option="en">
+                <span class="settings-language-flag" aria-hidden="true">🌐</span>
+                <span class="settings-language-name">English</span>
+                <span class="settings-language-check" aria-hidden="true"><svg viewBox="0 0 20 20"><path d="m4 10 4 4 8-8"/></svg></span>
+              </button>
+              <button class="settings-language-option" type="button" role="radio" aria-checked="false" data-language-option="vi">
+                <span class="settings-language-flag" aria-hidden="true">🇻🇳</span>
+                <span class="settings-language-name">Tiếng Việt</span>
+                <span class="settings-language-check" aria-hidden="true"><svg viewBox="0 0 20 20"><path d="m4 10 4 4 8-8"/></svg></span>
+              </button>
+              <button class="settings-language-option" type="button" role="radio" aria-checked="false" data-language-option="km">
+                <span class="settings-language-flag" aria-hidden="true">🇰🇭</span>
+                <span class="settings-language-name">ភាសាខ្មែរ</span>
+                <span class="settings-language-check" aria-hidden="true"><svg viewBox="0 0 20 20"><path d="m4 10 4 4 8-8"/></svg></span>
+              </button>
+            </div>
+            <button class="settings-language-done" type="button" data-language-done>Done</button>
+          </section>
+        </div>
+        <nav class="settings-nav" aria-label="Main navigation">
+          <button type="button" data-settings-nav="home" aria-label="Home">
+            <svg viewBox="0 0 24 24"><path d="M4 11 12 4l8 7v9h-6v-6h-4v6H4z"/></svg><span>Home</span>
+          </button>
+          <button type="button" data-settings-nav="referral" aria-label="Referral">
+            <svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M3.5 20v-1.5A5.5 5.5 0 0 1 9 13h1M16 8v6m-3-3h6"/><circle cx="16" cy="11" r="1"/></svg><span>Referral</span>
+          </button>
+          <button type="button" class="settings-nav-scan" data-settings-nav="scan" aria-label="Scan QR">
+            <svg viewBox="0 0 24 24"><path d="M4 9V5a1 1 0 0 1 1-1h4M15 4h4a1 1 0 0 1 1 1v4M20 15v4a1 1 0 0 1-1 1h-4M9 20H5a1 1 0 0 1-1-1v-4"/><path d="M8 8h8v8H8z"/></svg>
+          </button>
+          <button type="button" data-settings-nav="notifications" aria-label="Notifications">
+            <svg viewBox="0 0 24 24"><path d="M18 9a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/></svg><span>Notifications</span>
+          </button>
+          <button type="button" class="active" aria-current="page" aria-label="Settings">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="m19.4 15 .1.1 1.4 1.1-1.4 2.4-1.7-.7a8 8 0 0 1-1.5.9l-.3 1.8h-2.8l-.3-1.8a8 8 0 0 1-1.5-.9l-1.7.7-1.4-2.4 1.4-1.1a7 7 0 0 1 0-1.8l-1.4-1.1 1.4-2.4 1.7.7a8 8 0 0 1 1.5-.9l.3-1.8h2.8l.3 1.8a8 8 0 0 1 1.5.9l1.7-.7 1.4 2.4-1.4 1.1a7 7 0 0 1 0 1.7Z" transform="translate(-1 -2)"/></svg><span>Settings</span>
+          </button>
+        </nav>
+        <div class="settings-toast" id="settings-toast" role="status" aria-live="polite"></div>
+      </main>
+    <script>
+      (function () {
+        if (window.MB_API_BASE) return;
+        window.MB_API_BASE = "/api";
+      })();
+    </script>
+    <script src="./jsqr.min.js"></script>
+    <script src="./qrcode.min.js"></script>
+    <script src="./kh-banks.js?v=3"></script>
+    <script src="./lang.js?v=2"></script>
+    <script src="./bakong-service.js?v=1"></script>
+    <script src="./scan.js?v=99"></script>
+    <script src="./transfer-entry.js?v=1"></script>
+    <script src="./account.js?v=17"></script>
+    <script src="./home-balance.js?v=2"></script>
+    <script src="./referral.js?v=1"></script>
+    <script src="./notifications.js?v=5"></script>
+    <script src="./settings.js?v=2"></script>
+    <script src="./pwa-install.js"></script>
+  </body>
+</html>

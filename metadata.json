@@ -1,0 +1,10 @@
+{
+  "name": "Remix MB Cambodia",
+  "description": "MB Cambodia mobile banking experience for account overview, transfers, and Bakong KHQR payments.",
+  "requestFramePermissions": [
+    "camera"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
