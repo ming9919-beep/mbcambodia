@@ -155,7 +155,7 @@
             <div class="bill-avatar" id="bill-avatar" aria-hidden="true">
               <svg width="27" height="27" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M12 3.6L20 9.8H4z"/><path d="M6 13v8"/><path d="M10 13v8"/><path d="M14 13v8"/><path d="M18 13v8"/></svg>
             </div>
-            <p class="bill-target-label" style="font-size: 12px; color: #64748b; text-transform: uppercase; letter-spacing: 0.8px; margin: 0 0 4px; text-align: center; font-weight: 600;">To / Recipient</p>
+            <p class="bill-target-label">TO / RECIPIENT</p>
             <h1 class="bill-name" id="pf-merchant">CHAN DARA</h1>
             <p class="bill-bank" id="pf-bill-bank"></p>
 
@@ -169,14 +169,14 @@
 
             <div class="bill-hr" aria-hidden="true"></div>
 
-            <p class="bill-section">&#x1796;&#x17B8;</p>
+            <p class="bill-section">PAY FROM</p>
             <div class="bill-card">
               <p class="bill-acc-name" id="pf-from-name">SOKHA CHAN</p>
               <p class="bill-acc-num" id="pf-from-account"></p>
               <div class="bill-acc-row">
                 <p class="bill-acc-bal" id="pf-from-balance"></p>
                 <button class="bill-change" type="button" id="pf-change-account" aria-haspopup="dialog" aria-controls="pf-account-picker" aria-expanded="false">
-                  Change
+                  Change account
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
                 </button>
               </div>
@@ -189,7 +189,7 @@
           </div>
 
 <div class="bill-foot">
-            <button class="bill-btn" id="pf-next" type="button" disabled>&#x1794;&#x1793;&#x17D2;&#x178F;</button>
+            <button class="bill-btn" id="pf-next" type="button" disabled>បន្ត</button>
           </div>
         </div>
 
@@ -201,6 +201,7 @@
               <div>
                 <p>PAY FROM</p>
                 <h2 id="pf-account-picker-title">Choose an account</h2>
+                <p class="account-picker-hint">Use either your USD or KHR account.</p>
               </div>
               <button class="account-picker-close" type="button" data-account-picker-close aria-label="Close">×</button>
             </header>

@@ -382,6 +382,11 @@
   font-size: 21px; font-weight: 800; letter-spacing: 0.5px; color: #1e293b;
   text-transform: uppercase;
 }
+.bill-target-label {
+  margin: 0 0 4px; color: #64748b; text-align: center;
+  font-size: 12px; font-weight: 600; letter-spacing: 0.8px;
+  text-transform: uppercase;
+}
 .bill-caption {
   margin: 18px 0 2px; text-align: center;
   font-size: 13.5px; color: #6b7280;
@@ -912,6 +917,11 @@
   font-size: 20px;
   font-weight: 700;
   letter-spacing: -0.35px;
+}
+.account-picker-hint {
+  margin: 4px 0 0;
+  color: #728096;
+  font-size: 13px;
 }
 .account-picker-close {
   width: 36px;
