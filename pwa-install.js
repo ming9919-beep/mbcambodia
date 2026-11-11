@@ -7,16 +7,7 @@
   var isAppleMobile = /iphone|ipad|ipod/i.test(navigator.userAgent) ||
     (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
 
-  if ("serviceWorker" in navigator) {
-    navigator.serviceWorker.getRegistrations().then(function (registrations) {
-      for (var reg of registrations) reg.unregister();
-    });
-    if (window.caches) {
-      caches.keys().then(function (names) {
-        for (var name of names) caches.delete(name);
-      });
-    }
-  }
+  // service worker 由 index.html 注册（直通网络、不缓存），这里不再取消注册
 
   if (isStandalone) return;
 
