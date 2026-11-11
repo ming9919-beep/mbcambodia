@@ -175,7 +175,7 @@
   var BANK_LOGOS = {
     acleda: "acleda.png", aclb: "acleda.png", acledabank: "acleda.png",
     aba: "aba-user-logo.jpg", ababank: "aba-user-logo.jpg", abaa: "aba-user-logo.jpg",
-    wing: "wing.png", wingbank: "wing.png", pipay: "pipay.png",
+    wing: "wing.png", wingbank: "wing.png", pipay: "pipay.png?v=2",
     truemoney: "truemoney.png",
     maybank: "maybank.png"
   };

@@ -503,7 +503,7 @@ window.MB_KH_BANKS = [
       "pi-pay"
     ],
     "website": "https://pipay.com.kh/",
-    "logo": "./assets/banks/pipay.png"
+    "logo": "./assets/banks/pipay.png?v=2"
   },
   {
     "id": "ppcbank-phnom-penh-commercial-bank",
