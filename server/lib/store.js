@@ -5,6 +5,7 @@ const path = require("path");
 const crypto = require("crypto");
 const config = require("../config");
 const db = require("./db");
+const mongo = require("./mongo");
 
 const FILE = path.join(config.storageDir, "state.json");
 
@@ -18,7 +19,7 @@ const SEED = {
 };
 
 let state = null;
-let dbMode = false;
+let backend = null; // 当前生效的持久层：mongo / db，未启用时为 null（纯文件）
 
 function ensureDir() {
   if (!fs.existsSync(config.storageDir)) fs.mkdirSync(config.storageDir, { recursive: true });
@@ -44,19 +45,35 @@ function readFileState() {
 }
 
 /**
- * 启动时决定存储后端：优先 Postgres（DATABASE_URL），否则退回 JSON 文件。
+ * 启动时决定存储后端：优先 MongoDB Atlas（MONGODB_URI），其次 Postgres
+ * （DATABASE_URL），都没有则退回 JSON 文件。
  * 库里还没有数据时，用现有文件状态（或初始种子）灌一次，保证界面数据不变。
  */
 async function init() {
+  const mongoConn = await mongo.init();
+  if (mongoConn.ok) {
+    backend = mongo;
+    const remote = await mongo.loadState();
+    if (remote && typeof remote === "object") {
+      state = normalize(remote);
+      return { mode: mongo.status(), seeded: false };
+    }
+
+    state = normalize(readFileState() || JSON.parse(JSON.stringify(SEED)));
+    await mongo.saveState(state);
+    return { mode: mongo.status(), seeded: true, db: mongoConn.db };
+  }
+  if (mongo.enabled()) console.warn("[store] MongoDB 不可用，改用其他后端:", mongoConn.reason);
+
   const conn = await db.init();
   if (!conn.ok) {
     if (db.enabled()) console.warn("[store] Postgres 不可用，改用文件存储:", conn.reason);
-    dbMode = false;
+    backend = null;
     if (!state) state = normalize(readFileState() || JSON.parse(JSON.stringify(SEED)));
     return { mode: db.status(), seeded: false };
   }
 
-  dbMode = true;
+  backend = db;
   const remote = await db.loadState();
   if (remote && typeof remote === "object") {
     state = normalize(remote);
@@ -69,7 +86,7 @@ async function init() {
 }
 
 function storageMode() {
-  return db.status();
+  return backend ? backend.status() : db.status();
 }
 
 function load() {
@@ -84,8 +101,10 @@ function persist() {
   const tmp = path.join(config.storageDir, ".state." + process.pid + ".tmp");
   fs.writeFileSync(tmp, JSON.stringify(state, null, 2));
   fs.renameSync(tmp, FILE); // 原子替换，避免半截文件
-  if (dbMode) {
-    db.saveState(state).catch((err) => console.error("[store] 写入 Postgres 失败:", err.message));
+  if (backend) {
+    backend
+      .saveState(state)
+      .catch((err) => console.error("[store] 写入 " + backend.status() + " 失败:", err.message));
   }
 }
 
