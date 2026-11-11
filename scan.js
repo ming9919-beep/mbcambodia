@@ -40,6 +40,9 @@
   var pfBillBank = document.getElementById("pf-bill-bank");
   var billAvatar = document.getElementById("bill-avatar");
   var pfCur = document.getElementById("pf-cur");
+  var pfCurSwitch = document.getElementById("pf-cur-switch");
+  var pfCurUsd = document.getElementById("pf-cur-usd");
+  var pfCurKhr = document.getElementById("pf-cur-khr");
   var pfAmount = document.getElementById("pf-amount");
   var pfAmountHint = document.getElementById("pf-amount-hint");
   var pfNote = document.getElementById("pf-note");
@@ -176,6 +179,7 @@
     acleda: "acleda.png", aclb: "acleda.png", acledabank: "acleda.png",
     aba: "aba-user-logo.jpg", ababank: "aba-user-logo.jpg", abaa: "aba-user-logo.jpg",
     wing: "wing.png", wingbank: "wing.png", pipay: "pipay.png?v=2",
+    emoney: "emoney.png", emny: "emoney.png",
     truemoney: "truemoney.png",
     maybank: "maybank.png"
   };
@@ -250,6 +254,36 @@
     var len = String(pfAmount.value || pfAmount.placeholder || "0.00").length;
     pfAmount.style.width = Math.max(3.4, len + 0.6).toFixed(1) + "ch";
   }
+
+  /* ---------- 币种切换：USD <-> KHR ---------- */
+  function syncCurrencySwitch(currency) {
+    var cur = String(currency || "USD").toUpperCase();
+    if (pfCurUsd) pfCurUsd.setAttribute("aria-pressed", String(cur === "USD"));
+    if (pfCurKhr) pfCurKhr.setAttribute("aria-pressed", String(cur === "KHR"));
+    if (pfCur) pfCur.textContent = cur;
+  }
+
+  function switchCurrency(target) {
+    if (!state.current) return;
+    var fromCur = String(state.current.currency || "USD").toUpperCase();
+    var toCur = String(target || "USD").toUpperCase();
+    if (fromCur === toCur) return;
+    // 换算当前输入金额
+    var raw = pfAmount.value.trim();
+    var value = raw ? Number(raw) : null;
+    state.current.currency = toCur;
+    if (value && isFinite(value)) {
+      pfAmount.value = String(toCur === "KHR" ? Math.round(convertAmount(value, fromCur)) :
+        convertAmount(value, fromCur).toFixed(2).replace(/\.?0+$/, ""));
+    }
+    syncCurrencySwitch(toCur);
+    sizeAmountInput();
+    refreshAmountState();
+    if (pfRate) pfRate.textContent = "1 USD = 4,083.00 KHR";
+  }
+
+  if (pfCurUsd) pfCurUsd.addEventListener("click", function () { switchCurrency("USD"); });
+  if (pfCurKhr) pfCurKhr.addEventListener("click", function () { switchCurrency("KHR"); });
 
   /* ---------- payload parsing ---------- */
 
@@ -624,7 +658,16 @@
   function displayRecipientAccount(account) {
     var raw = String(account || "");
     if (!raw) return "";
-    return RECIPIENT_ACCOUNTS[raw.toLowerCase()] || raw;
+    // 先查别名映射表（演示用的 Bakong 别名 → 真实账号）
+    var mapped = RECIPIENT_ACCOUNTS[raw.toLowerCase()];
+    if (mapped) return mapped;
+    // Bakong 账户格式 xxx@domain，只显示 @ 前面的账号部分，
+    // @后面的域名是银行标识，已在 bank name/logo 里体现，不重复展示
+    if (raw.indexOf("@") > -1) {
+      var parts = raw.split("@");
+      return parts[0];
+    }
+    return raw;
   }
 
   function recipientAccountText(info) {
@@ -661,11 +704,14 @@
     var bank = (info.bank && info.bank.name) || "Bakong member bank";
     var bankShort = (info.bank && info.bank.short) || "";
 
-    // 收款人姓名：严格展示扫码识别到的对方/收款方姓名，不显示付款卡本人
+    // 收款人姓名：优先用 KHQR 码里的商户名(tag 59)；
+    // Bakong 返回的 fullName 对"银行收款码"是机构注册全名（如 WING BANK (CAMBODIA) PLC），
+    // 只能作为账户校验佐证，不能覆盖商户名，否则银行名会冒充收款人。
     var cardholder = (fromAccount && fromAccount.name) || "SOKHA CHAN";
-    var recipientName = (info.recipient && info.recipient.fullName) || info.merchant;
+    var recipientName = info.merchant || (info.recipient && info.recipient.fullName);
     if (!recipientName || recipientName === cardholder) {
-      recipientName = (info.bank && info.bank.name) ? info.bank.name + " Merchant" : "CHAN DARA";
+      // 缺省使用通用商户名，绝不回退到银行名，避免银行名冒充收款人
+      recipientName = "KHQR Merchant";
     }
     pfMerchant.textContent = recipientName;
     var verified = info.recipient && info.recipient.exists
@@ -677,9 +723,10 @@
     pfConfirmBank.textContent = recipientAccountText(info) + verified;
     var billAccount = String(info.merchantId || accountId || "");
     if (pfBillBank) {
+      // 只显示收款账号，不附加 Bakong verified / KYC 状态
       pfBillBank.textContent = billAccount
-        ? "Account: " + displayRecipientAccount(billAccount) + verified
-        : bank + verified;
+        ? "Account: " + displayRecipientAccount(billAccount)
+        : "";
     }
     var markLogo = bankLogoSrc(info);
     paintMark(pfConfirmToMark, markLogo, bank);
@@ -688,6 +735,7 @@
     pfSuccessBankShort.textContent = bankShort || bank;
 
     pfCur.textContent = currency;
+    syncCurrencySwitch(currency);
     var prefill = info.amount === null || info.amount === undefined || info.amount === "" ? "" : String(info.amount);
     if (prefill && currency === "KHR") prefill = String(Math.round(Number(prefill)));
     pfAmount.value = prefill;
@@ -859,7 +907,10 @@
     }).then(function (payment) {
       state.payment = payment;
       if (payment.recipientBank && payment.recipientBank.name) {
-        pfSuccessBank.textContent = payment.recipientBank.name;
+        var _acct = (state.current && (state.current.accountId || state.current.account)) || "";
+        var _mid = (state.current && state.current.merchantId) || payment.merchantId || "";
+        var _recipientAcct = _mid || _acct;
+        pfSuccessBank.textContent = _recipientAcct ? "Account: " + displayRecipientAccount(_recipientAcct) : "";
         pfConfirmBank.textContent = recipientAccountText(Object.assign({}, state.current || {}, {
           merchantId: payment.merchantId || payment.merchantAccount ||
             (payment.recipientAccount && (payment.recipientAccount.id || payment.recipientAccount)) ||
@@ -1025,6 +1076,7 @@
     aba: ["ABA Bank", "Advanced Bank of Asia"], ababank: ["ABA Bank", "Advanced Bank of Asia"],
     abaa: ["ABA Bank", "Advanced Bank of Asia"],
     wing: ["Wing Bank", "Wing Bank (Cambodia) Plc."],
+    emoney: ["eMoney", "eMoney Cambodia"], emny: ["eMoney", "eMoney Cambodia"],
     ppcbank: ["PPCBank", "Phnom Penh Commercial Bank"], ppcb: ["PPCBank", "Phnom Penh Commercial Bank"],
     canadabank: ["Canadia Bank", "Canadia Bank Plc."], maybank: ["Maybank Cambodia", "Maybank (Cambodia) Plc."],
     ftb: ["FTB Bank", "Foreign Trade Bank of Cambodia"], cimb: ["CIMB Bank", "CIMB Bank Plc."],

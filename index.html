@@ -157,7 +157,11 @@
             <p class="bill-caption">&#x1785;&#x17C6;&#x1793;&#x17BD;&#x1791;&#x17B9;&#x1780;&#x1794;&#x17D2;&#x179A;&#x17B6;&#x1780;&#x17CB;</p>
             <div class="bill-amount">
               <input class="bill-amount-input" id="pf-amount" inputmode="decimal" placeholder="0.00" aria-label="Payment amount" autocomplete="off" />
-              <span class="bill-cur" id="pf-cur">USD</span>
+              <div class="bill-cur-switch" id="pf-cur-switch" role="group" aria-label="Payment currency">
+                <button type="button" class="bill-cur-btn" data-cur="USD" id="pf-cur-usd">USD</button>
+                <button type="button" class="bill-cur-btn" data-cur="KHR" id="pf-cur-khr">KHR</button>
+              </div>
+              <span class="bill-cur" id="pf-cur" hidden>USD</span>
             </div>
 
             <p class="bill-hint" id="pf-amount-hint" role="status" aria-live="polite" hidden></p>

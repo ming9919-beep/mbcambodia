@@ -413,6 +413,25 @@
   font-size: 17px; font-weight: 800; letter-spacing: 0.8px;
   color: #e8402a; text-transform: uppercase;
 }
+/* currency switcher: USD / KHR toggle on the bill screen */
+.bill-cur-switch {
+  display: inline-flex; align-items: stretch; align-self: center;
+  border-radius: 9px; overflow: hidden;
+  border: 1px solid #e0e7f1; background: #f3f6fb;
+}
+.bill-cur-btn {
+  border: 0; background: transparent; cursor: pointer;
+  padding: 5px 12px; min-width: 48px;
+  font-family: inherit; font-size: 13px; font-weight: 800; letter-spacing: 0.6px;
+  color: #6f7787; text-transform: uppercase;
+  transition: background 0.15s, color 0.15s;
+}
+.bill-cur-btn + .bill-cur-btn { border-left: 1px solid #e0e7f1; }
+.bill-cur-btn:hover { background: #e9eff8; color: #1d2330; }
+.bill-cur-btn[aria-pressed="true"] {
+  background: #e8402a; color: #fff;
+}
+.bill-cur-btn[aria-pressed="true"]:hover { background: #d6371f; color: #fff; }
 .bill-hr {
   height: 1px; margin: 8px 0 16px;
   background: linear-gradient(90deg, rgba(190, 202, 220, 0) 0%, #cdd7e5 22%, #cdd7e5 78%, rgba(190, 202, 220, 0) 100%);

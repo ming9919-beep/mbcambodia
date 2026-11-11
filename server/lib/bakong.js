@@ -8,10 +8,15 @@ let token = config.bakong.token;
 let renewing = null;
 
 let proxyDispatcher = null;
+// 必须使用外部 undici 的 fetch：Node 内置 fetch 自带的 undici 与外部安装的
+// undici 是两个不同实例，把外部 ProxyAgent 传给内置 fetch 的 dispatcher 会导致
+// 请求永久挂起（事件循环被占住，整个服务无响应）。
+let undiciFetch = globalThis.fetch;
 if (config.bakong.proxy) {
   try {
-    const { ProxyAgent } = require("undici");
-    proxyDispatcher = new ProxyAgent(config.bakong.proxy);
+    const undici = require("undici");
+    undiciFetch = undici.fetch;
+    proxyDispatcher = new undici.ProxyAgent(config.bakong.proxy);
   } catch (err) {
     console.error("Bakong proxy init failed:", err.message);
   }
@@ -27,7 +32,7 @@ async function call(pathname, body, options) {
   if (opts.auth !== false) headers.Authorization = "Bearer " + (token || "");
   let res;
   try {
-    res = await fetch(config.bakong.baseUrl + pathname, {
+    res = await undiciFetch(config.bakong.baseUrl + pathname, {
       method: "POST",
       headers,
       body: JSON.stringify(body || {}),
@@ -172,6 +177,8 @@ const BANK_DOMAINS = {
   ababank: { name: "ABA Bank", short: "Advanced Bank of Asia" },
   abaa: { name: "ABA Bank", short: "Advanced Bank of Asia" },
   wing: { name: "Wing Bank", short: "Wing Bank (Cambodia) Plc." },
+  emoney: { name: "eMoney", short: "eMoney Cambodia" },
+  emny: { name: "eMoney", short: "eMoney Cambodia" },
   pipay: { name: "PiPay", short: "PiPay Cambodia" },
   pipaykh: { name: "PiPay", short: "PiPay Cambodia" },
   ppcbank: { name: "PPCBank", short: "Phnom Penh Commercial Bank" },
@@ -206,8 +213,38 @@ function resolveBank(accountId) {
   return { name: pretty + " Bank", short: "", code: domain };
 }
 
+/**
+ * 严格 TLV 预检：在把字符串交给 bakong-khqr SDK 之前先确认结构合法。
+ *
+ * SDK 内部的 cutString 在遇到「长度字段与实际内容不符」的畸形码时，
+ * slicedString 可能不再缩短剩余串，导致 while 循环永不退出 —— 单线程的
+ * Node 事件循环会被彻底占死，整个服务（包括静态资源）全部无响应。
+ * 因此这里先用自实现的严格解析器做校验，任何异常结构一律直接拒绝。
+ */
+function isStructurallyValidKhqr(qr) {
+  const text = String(qr || "").trim();
+  if (!text || text.length > 4096) return false;
+  if (!/^00020[12]/.test(text)) return false;
+  let rest = text;
+  let guard = 0;
+  while (rest.length > 0) {
+    if (guard++ > 100) return false; // 防御性上限
+    if (rest.length < 4) return false;
+    const tag = rest.slice(0, 2);
+    if (!/^\d{2}$/.test(tag)) return false;
+    const lenStr = rest.slice(2, 4);
+    if (!/^\d{2}$/.test(lenStr)) return false;
+    const len = parseInt(lenStr, 10);
+    // 长度字段必须是纯数字且不能超过剩余内容
+    if (!isFinite(len) || len < 0 || 4 + len > rest.length) return false;
+    rest = rest.slice(4 + len);
+  }
+  return true;
+}
+
 /** 解析 KHQR 字符串，返回商户、金额、币种等；不是合法 KHQR 时返回 null */
 function decodeKhqr(qr) {
+  if (!isStructurallyValidKhqr(qr)) return null;
   const decoded = BakongKHQR.decode(qr);
   if (!decoded || !decoded.data) return null;
   const d = decoded.data;
