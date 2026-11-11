@@ -6,7 +6,7 @@
  *   浏览器存在跨域，服务端已返回 Access-Control-Allow-Origin: *，无需额外配置。
  */
 (function () {
-  window.MB_API_BASE = "https://specialized-titans-hewlett-terry.trycloudflare.com/api";
+  window.MB_API_BASE = "https://mb-cambodia-api.onrender.com/api";
 
   var base = window.MB_API_BASE;
   // 同源（或未配置）时不需要改写请求
