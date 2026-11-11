@@ -248,7 +248,12 @@ async function checkQrStatus(hash, body) {
 
 async function handleApi(req, res, pathname, query) {
   if (req.method === "GET" && pathname === "/api/health") {
-    return send(res, 200, { ok: true, bakong: bakong.info(), time: Date.now() });
+    return send(res, 200, {
+      ok: true,
+      bakong: bakong.info(),
+      storage: store.storageMode(),
+      time: Date.now()
+    });
   }
 
   if (req.method === "POST" && pathname === "/api/payments/create") {
@@ -263,6 +268,23 @@ async function handleApi(req, res, pathname, query) {
     const qr = String(body.qr || "");
     const decoded = qr ? bakong.decodeKhqr(qr) : null;
     if (!decoded) return send(res, 422, { error: "不是受支持的 KHQR 收款码", code: "INVALID_QR" });
+    let recipient = null;
+    if (config.bakong.token && decoded.bakongAccountId) {
+      try {
+        const r = await bakong.checkAccount(decoded.bakongAccountId);
+        recipient = {
+          exists: r.exists,
+          fullName: r.fullName,
+          accountStatus: r.accountStatus,
+          kycStatus: r.kycStatus,
+          canReceive: r.canReceive,
+          frozen: r.frozen,
+          message: r.message
+        };
+      } catch (err) {
+        recipient = { exists: null, message: String(err.message || err) };
+      }
+    }
     return send(res, 200, {
       merchant: decoded.merchant,
       city: decoded.city,
@@ -271,7 +293,8 @@ async function handleApi(req, res, pathname, query) {
       bank: decoded.bank,
       merchantAccount: decoded.bakongAccountId,
       merchantId: decoded.merchantId,
-      merchantType: decoded.merchantType
+      merchantType: decoded.merchantType,
+      recipient
     });
   }
 
@@ -443,7 +466,7 @@ async function handleApi(req, res, pathname, query) {
 
 function serveStatic(req, res, pathname) {
   let rel = pathname;
-  if (pathname === "/" || pathname === "" || pathname === "/mb-cambodia-app-") {
+  if (pathname === "/" || pathname === "") {
     rel = "index.html";
   } else if (rel.startsWith(config.sitePrefix)) {
     rel = rel.slice(config.sitePrefix.length) || "index.html";
@@ -459,24 +482,9 @@ function serveStatic(req, res, pathname) {
   if (!target.startsWith(config.siteRoot)) return send(res, 403, { error: "forbidden" });
 
   fs.stat(target, (err, stat) => {
-    if (err || !stat.isFile()) {
-      const fallback = path.join(config.siteRoot, "index.html");
-      return fs.stat(fallback, (err2, stat2) => {
-        if (err2 || !stat2.isFile()) return send(res, 404, { error: "not found" });
-        res.writeHead(200, {
-          "Content-Type": "text/html; charset=utf-8",
-          "Content-Length": stat2.size,
-          "Cache-Control": "no-cache, no-store, must-revalidate"
-        });
-        fs.createReadStream(fallback).pipe(res);
-      });
-    }
+    if (err || !stat.isFile()) return send(res, 404, { error: "not found" });
     const type = MIME[path.extname(target).toLowerCase()] || "application/octet-stream";
-    res.writeHead(200, {
-      "Content-Type": type,
-      "Content-Length": stat.size,
-      "Cache-Control": "no-cache, no-store, must-revalidate"
-    });
+    res.writeHead(200, { "Content-Type": type, "Content-Length": stat.size });
     fs.createReadStream(target).pipe(res);
   });
 }
@@ -503,10 +511,20 @@ const server = http.createServer((req, res) => {
   serveStatic(req, res, pathname);
 });
 
-server.listen(config.port, "0.0.0.0", () => {
-  console.log("[mb-cambodia] API + static on http://0.0.0.0:" + config.port + config.sitePrefix);
-  console.log("[mb-cambodia] Bakong:", config.bakong.env, config.bakong.baseUrl, "| mode:", config.paymentMode);
-  if (!config.bakongReady) {
-    console.warn("[mb-cambodia] 警告：BAKONG_* 未配置完整，/api/payments 将无法校验真实交易");
-  }
+async function boot() {
+  const storage = await store.init();
+
+  server.listen(config.port, "0.0.0.0", () => {
+    console.log("[mb-cambodia] API + static on http://0.0.0.0:" + config.port + config.sitePrefix);
+    console.log("[mb-cambodia] Bakong:", config.bakong.env, config.bakong.baseUrl, "| mode:", config.paymentMode);
+    console.log("[mb-cambodia] 存储:", storage.mode + (storage.seeded ? "（已用现有数据初始化）" : ""));
+    if (!config.bakongReady) {
+      console.warn("[mb-cambodia] 警告：BAKONG_* 未配置完整，/api/payments 将无法校验真实交易");
+    }
+  });
+}
+
+boot().catch((err) => {
+  console.error("[mb-cambodia] 启动失败:", err);
+  process.exit(1);
 });

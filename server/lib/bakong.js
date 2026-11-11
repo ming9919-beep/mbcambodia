@@ -7,6 +7,16 @@ const { BakongKHQR, khqrData, MerchantInfo, IndividualInfo } = require("bakong-k
 let token = config.bakong.token;
 let renewing = null;
 
+let proxyDispatcher = null;
+if (config.bakong.proxy) {
+  try {
+    const { ProxyAgent } = require("undici");
+    proxyDispatcher = new ProxyAgent(config.bakong.proxy);
+  } catch (err) {
+    console.error("Bakong proxy init failed:", err.message);
+  }
+}
+
 function md5(text) {
   return crypto.createHash("md5").update(text).digest("hex");
 }
@@ -15,12 +25,27 @@ async function call(pathname, body, options) {
   const opts = options || {};
   const headers = { "Content-Type": "application/json", Accept: "application/json" };
   if (opts.auth !== false) headers.Authorization = "Bearer " + (token || "");
-  const res = await fetch(config.bakong.baseUrl + pathname, {
-    method: "POST",
-    headers,
-    body: JSON.stringify(body || {}),
-    signal: AbortSignal.timeout(20000)
-  });
+  let res;
+  try {
+    res = await fetch(config.bakong.baseUrl + pathname, {
+      method: "POST",
+      headers,
+      body: JSON.stringify(body || {}),
+      signal: AbortSignal.timeout(20000),
+      ...(proxyDispatcher ? { dispatcher: proxyDispatcher } : {})
+    });
+  } catch (err) {
+    const cause = err && err.cause;
+    console.error(
+      "[bakong] fetch failed:",
+      err && err.message,
+      "| cause:",
+      cause && (cause.code || cause.message),
+      "| proxy:",
+      config.bakong.proxy ? "on" : "off"
+    );
+    throw err;
+  }
   const text = await res.text();
   let json = null;
   try {
@@ -78,12 +103,18 @@ async function checkByShortHash(hash, amount, currency) {
 /** 校验 Bakong 账户是否存在（文档 8）：responseCode 0 = 存在 */
 async function checkAccount(accountId) {
   const r = await authed("/v1/check_bakong_account", { accountId: accountId });
+  const data = (r.json && r.json.data) || {};
   return {
     ok: Boolean(r.json && r.json.responseCode === 0),
     exists: Boolean(r.json && r.json.responseCode === 0),
     httpStatus: r.status,
     errorCode: r.json ? r.json.errorCode : null,
-    message: (r.json && r.json.responseMessage) || "HTTP " + r.status
+    message: (r.json && r.json.responseMessage) || "HTTP " + r.status,
+    fullName: data.fullName || "",
+    accountStatus: data.accountStatus || "",
+    kycStatus: data.kycStatus || "",
+    canReceive: data.canReceive === true,
+    frozen: data.frozen === 1 || data.frozen === true
   };
 }
 

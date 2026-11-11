@@ -25,15 +25,15 @@ function loadEnvFile() {
 loadEnvFile();
 
 const BAKONG_BASE = {
-  production: "https://api-bakong.nbc.org.kh",
-  sit: "https://sit-api-bakong.nbc.org.kh"
+  production: "https://api-bakong.nbc.gov.kh",
+  sit: "https://sit-api-bakong.nbc.gov.kh"
 };
 
 const env = (process.env.BAKONG_ENV || "production").toLowerCase();
 const bakongToken = process.env.BAKONG_TOKEN || "";
 
 const config = {
-  port: 3000,
+  port: Number(process.env.PORT || 8787),
   bakong: {
     env,
     baseUrl: BAKONG_BASE[env] || BAKONG_BASE.production,
@@ -43,7 +43,8 @@ const config = {
     merchantName: process.env.MERCHANT_NAME || "",
     merchantCity: process.env.MERCHANT_CITY || "Phnom Penh",
     merchantId: process.env.MERCHANT_ID || "",
-    acquiringBank: process.env.ACQUIRING_BANK || ""
+    acquiringBank: process.env.ACQUIRING_BANK || "",
+    proxy: process.env.BAKONG_PROXY || process.env.HTTPS_PROXY || process.env.HTTP_PROXY || ""
   },
   paymentMode: (process.env.PAYMENT_MODE || (bakongToken ? "bakong" : "demo")).toLowerCase(),
   paymentTimeout: Number(process.env.PAYMENT_TIMEOUT || 180),
