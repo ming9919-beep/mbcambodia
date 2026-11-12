@@ -135,7 +135,14 @@
     return "MB" + t + r;
   }
 
+  // 全站唯一的 USD<->KHR 汇率：换算与界面文案都从这里出，改汇率只改这一行
   var USD_KHR_RATE = 4083;
+
+  // 界面上的汇率文案由这个常量生成，避免数字再抄一遍
+  function rateLabel() {
+    var text = USD_KHR_RATE.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+    return "1 USD = " + text + " KHR";
+  }
 
   function nowLabel() {
     var d = new Date();
@@ -279,7 +286,7 @@
     syncCurrencySwitch(toCur);
     sizeAmountInput();
     refreshAmountState();
-    if (pfRate) pfRate.textContent = "1 USD = 4,083.00 KHR";
+    if (pfRate) pfRate.textContent = rateLabel();
   }
 
   if (pfCurUsd) pfCurUsd.addEventListener("click", function () { switchCurrency("USD"); });
@@ -744,7 +751,7 @@
     refreshAmountState();
     pfConfirmBtn.disabled = false;
     pfConfirmBtn.textContent = "Confirm";
-    if (pfRate) pfRate.textContent = "1 USD = 4,083.00 KHR";
+    if (pfRate) pfRate.textContent = rateLabel();
     pfSumFrom.textContent = fromAccount.id ? fromAccount.id + " | " + fromAccount.currency : "";
     pfSuccessFrom.textContent = pfSumFrom.textContent;
 
@@ -968,7 +975,7 @@
     var debit = Number(payment.amount) || 0;
     var currency = payment.currency || fromAccount.currency;
     if (currency !== fromAccount.currency) {
-      debit = currency === "KHR" ? debit / 4083 : debit * 4083;
+      debit = convertAmount(debit, currency);
     }
     debit = fromAccount.currency === "KHR" ? Math.round(debit) : Math.round(debit * 100) / 100;
     var key = LOCAL_TX_KEY;
