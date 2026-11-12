@@ -409,6 +409,12 @@
   font-size: 13px; font-weight: 600; color: #e8402a;
 }
 .bill-hint[hidden] { display: none; }
+/* 金额下方的汇率提示，文案由 scan.js 的 rateLabel() 统一生成 */
+.bill-rate {
+  margin: 6px 0 0; text-align: center;
+  font-size: 12.5px; font-weight: 600; color: #6f7787;
+  font-variant-numeric: tabular-nums;
+}
 .bill-cur {
   font-size: 17px; font-weight: 800; letter-spacing: 0.8px;
   color: #e8402a; text-transform: uppercase;
