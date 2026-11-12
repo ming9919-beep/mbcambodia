@@ -6,8 +6,11 @@ const crypto = require("crypto");
 const config = require("../config");
 const db = require("./db");
 const mongo = require("./mongo");
+const customers = require("./customers");
 
 const FILE = path.join(config.storageDir, "state.json");
+
+let customerMode = "unavailable";
 
 const SEED = {
   accounts: [
@@ -77,12 +80,42 @@ async function init() {
   const remote = await db.loadState();
   if (remote && typeof remote === "object") {
     state = normalize(remote);
+    await initCustomers(state);
     return { mode: "postgres", seeded: false };
   }
 
   state = normalize(readFileState() || JSON.parse(JSON.stringify(SEED)));
   await db.saveState(state);
+  await initCustomers(state);
   return { mode: "postgres", seeded: true };
+}
+
+/**
+ * 客户库（customers / customer_accounts / transactions）建表 + 首次迁移。
+ * 拿现有账户状态灌一批数据，界面和接口一上线就有内容。
+ */
+async function initCustomers(snapshot) {
+  const r = await customers.init();
+  if (!r.ok) {
+    customerMode = "unavailable";
+    console.warn("[store] 客户/流水库不可用:", r.reason);
+    return;
+  }
+  customerMode = "postgres";
+  try {
+    const m = await customers.migrateFromState(snapshot);
+    if (m && m.migrated) {
+      console.log("[store] 已迁移 " + m.migrated + " 个账户到客户库，客户ID " + m.customerId);
+    } else if (m && m.ok === false) {
+      console.warn("[store] 客户数据迁移未完成:", m.message || m.reason || m.code);
+    }
+  } catch (err) {
+    console.error("[store] 客户数据迁移失败:", err.message);
+  }
+}
+
+function customerStorageMode() {
+  return customerMode;
 }
 
 function storageMode() {
@@ -195,6 +228,12 @@ function createAccount({ name, type, currency, balance }) {
   if (name) account.name = String(name).slice(0, 40);
   st.accounts.push(account);
   persist();
+
+  // 新开的账户也登记到客户库，后续转账/支付才能进这个客户的流水
+  customers.registerAccount(account).catch((err) => {
+    console.error("[store] 账户登记到客户库失败:", err.message);
+  });
+
   return { ok: true, account, accounts: listAccounts() };
 }
 
@@ -241,6 +280,11 @@ function transfer({ from, to, amount, note }) {
   st.transfers.unshift(record);
   if (st.transfers.length > 200) st.transfers.length = 200;
   persist();
+
+  // 镜像到客户库（每个客户自己的流水），失败不影响转账本身
+  customers.recordTransfer(record, st.accounts).catch((err) => {
+    console.error("[store] 客户流水写入失败:", err.message);
+  });
 
   return {
     ok: true,
@@ -302,6 +346,11 @@ function recordExternalPayment({ accountId, amount, currency, merchant, merchant
   if (st.transfers.length > 200) st.transfers.length = 200;
   persist();
 
+  // 镜像到客户库，让付款人的流水里也能看到这笔扫码支付
+  customers.recordKhqr(null, record).catch((err) => {
+    console.error("[store] 客户流水写入失败:", err.message);
+  });
+
   return { ok: true, record, account: Object.assign({}, src) };
 }
 
@@ -312,6 +361,7 @@ function round(n, currency) {
 module.exports = {
   init,
   storageMode,
+  customerStorageMode,
   load,
   persist,
   newRef,

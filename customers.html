@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>客户与交易流水 · MB Cambodia</title>
+    <script src="./api-config.js"></script>
+    <style>
+      :root {
+        --blue: #0877ef;
+        --blue-dark: #0663c6;
+        --ink: #101828;
+        --muted: #667085;
+        --line: #e4e7ec;
+        --bg: #f7f9fc;
+        --ok: #12b76a;
+        --out: #d92d20;
+        --card: #ffffff;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: Inter, -apple-system, "Segoe UI", "Noto Sans Khmer", sans-serif;
+        background: var(--bg);
+        color: var(--ink);
+      }
+      header {
+        background: var(--card);
+        border-bottom: 1px solid var(--line);
+        padding: 16px 20px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        position: sticky;
+        top: 0;
+        z-index: 10;
+      }
+      header h1 { font-size: 18px; margin: 0; letter-spacing: -0.2px; }
+      header .sub { color: var(--muted); font-size: 12px; }
+      header a.back {
+        margin-left: auto;
+        font-size: 13px;
+        color: var(--blue);
+        text-decoration: none;
+      }
+      main { max-width: 1020px; margin: 0 auto; padding: 20px; }
+      .toolbar { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; }
+      .toolbar input[type="search"] {
+        flex: 1;
+        min-width: 220px;
+        padding: 10px 14px;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        font-size: 14px;
+        background: var(--card);
+      }
+      button {
+        font: inherit;
+        cursor: pointer;
+        border-radius: 10px;
+        border: 1px solid transparent;
+        padding: 10px 16px;
+        font-size: 14px;
+      }
+      button.primary { background: var(--blue); color: #fff; }
+      button.primary:hover { background: var(--blue-dark); }
+      button.ghost { background: var(--card); border-color: var(--line); color: var(--ink); }
+      button:disabled { opacity: 0.55; cursor: not-allowed; }
+      .card {
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        padding: 18px;
+        margin-bottom: 16px;
+      }
+      .card h2 { font-size: 15px; margin: 0 0 12px; }
+      .list { display: flex; flex-direction: column; gap: 8px; }
+      .row {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px 14px;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        background: #fff;
+        cursor: pointer;
+        text-align: left;
+        width: 100%;
+      }
+      .row:hover, .row.active { border-color: var(--blue); background: #f3f8ff; }
+      .avatar {
+        width: 38px; height: 38px; border-radius: 50%;
+        background: #eaf2ff; color: var(--blue);
+        display: grid; place-items: center;
+        font-weight: 700; flex: 0 0 auto;
+      }
+      .row .who { flex: 1; min-width: 0; }
+      .row .who b { display: block; font-size: 14px; }
+      .row .who span { color: var(--muted); font-size: 12px; }
+      .row .meta { color: var(--muted); font-size: 12px; white-space: nowrap; }
+      .empty { color: var(--muted); font-size: 13px; padding: 14px 0; }
+      .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; }
+      .stat { background: #f9fafb; border: 1px solid var(--line); border-radius: 12px; padding: 12px; }
+      .stat span { display: block; color: var(--muted); font-size: 12px; margin-bottom: 4px; }
+      .stat b { font-size: 16px; }
+      table { width: 100%; border-collapse: collapse; font-size: 13px; }
+      th, td { text-align: left; padding: 10px 8px; border-bottom: 1px solid var(--line); }
+      th { color: var(--muted); font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: 0.4px; }
+      td.amt { font-weight: 600; white-space: nowrap; }
+      td.amt.in { color: var(--ok); }
+      td.amt.out { color: var(--out); }
+      .pill { display: inline-block; padding: 2px 8px; border-radius: 999px; background: #f2f4f7; color: #344054; font-size: 11px; }
+      form.inline { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; align-items: end; }
+      label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+      input, select {
+        width: 100%;
+        padding: 9px 12px;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        font: inherit;
+        font-size: 13px;
+        background: #fff;
+      }
+      .hint { color: var(--muted); font-size: 12px; margin-top: 8px; line-height: 1.5; }
+      .toast {
+        position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%);
+        background: #101828; color: #fff; padding: 10px 16px; border-radius: 10px;
+        font-size: 13px; opacity: 0; pointer-events: none; transition: opacity .2s;
+      }
+      .toast.show { opacity: 1; }
+      .toast.err { background: #b42318; }
+      .split { display: grid; grid-template-columns: 340px 1fr; gap: 16px; }
+      @media (max-width: 860px) { .split { grid-template-columns: 1fr; } }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div>
+        <h1>客户与交易流水</h1>
+        <div class="sub">数据存 Postgres：customers / customer_accounts / transactions</div>
+      </div>
+      <a class="back" href="./index.html">← 返回 App</a>
+    </header>
+
+    <main>
+      <div class="toolbar">
+        <input id="q" type="search" placeholder="搜索姓名 / 手机号 / Bakong 账户" />
+        <button class="primary" id="btnNew">新增客户</button>
+        <button class="ghost" id="btnRefresh">刷新</button>
+      </div>
+
+      <section class="card" id="newCard" hidden>
+        <h2>新增客户</h2>
+        <form class="inline" id="newForm">
+          <div><label>姓名 *</label><input name="name" required maxlength="80" /></div>
+          <div><label>手机号</label><input name="phone" maxlength="32" /></div>
+          <div><label>邮箱</label><input name="email" type="email" maxlength="120" /></div>
+          <div><label>证件号</label><input name="nationalId" maxlength="40" /></div>
+          <div><label>Bakong 账户</label><input name="bakongAccount" maxlength="60" placeholder="123456789@aclb" /></div>
+          <div><label>KYC 状态</label>
+            <select name="kycStatus">
+              <option value="pending">pending</option>
+              <option value="verified">verified</option>
+              <option value="rejected">rejected</option>
+            </select>
+          </div>
+          <div><button class="primary" type="submit">保存</button></div>
+        </form>
+      </section>
+
+      <div class="split">
+        <section class="card">
+          <h2>客户列表 <span class="pill" id="count">0</span></h2>
+          <div class="list" id="list"></div>
+        </section>
+
+        <section class="card" id="detail" hidden>
+          <h2 id="detailName">—</h2>
+          <div class="grid2" id="stats"></div>
+
+          <h2 style="margin-top:18px">账户</h2>
+          <div class="list" id="accounts"></div>
+          <form class="inline" id="accountForm" style="margin-top:12px">
+            <div><label>币种</label>
+              <select name="currency"><option>USD</option><option>KHR</option></select>
+            </div>
+            <div><label>类型</label>
+              <select name="type"><option>Payment</option><option>Savings</option></select>
+            </div>
+            <div><label>初始余额</label><input name="balance" type="number" step="0.01" min="0" value="0" /></div>
+            <div><button class="ghost" type="submit">添加账户</button></div>
+          </form>
+
+          <h2 style="margin-top:18px">交易流水</h2>
+          <table>
+            <thead>
+              <tr><th>时间</th><th>类型</th><th>对手方</th><th>金额</th><th>状态</th><th>参考号</th></tr>
+            </thead>
+            <tbody id="txns"></tbody>
+          </table>
+          <div class="empty" id="txnEmpty">暂无流水</div>
+
+          <h2 style="margin-top:18px">手工记一笔</h2>
+          <form class="inline" id="txnForm">
+            <div><label>方向</label>
+              <select name="direction"><option value="in">收入 in</option><option value="out">支出 out</option></select>
+            </div>
+            <div><label>账户</label><select name="accountId" id="txnAccount"></select></div>
+            <div><label>金额</label><input name="amount" type="number" step="0.01" min="0" required /></div>
+            <div><label>类型</label>
+              <select name="kind">
+                <option value="deposit">deposit</option>
+                <option value="withdrawal">withdrawal</option>
+                <option value="fee">fee</option>
+                <option value="refund">refund</option>
+              </select>
+            </div>
+            <div><label>对手方 / 备注</label><input name="counterparty" maxlength="80" /></div>
+            <div><button class="primary" type="submit">写入流水</button></div>
+          </form>
+          <div class="hint">手工流水会同时增减所选账户余额；扫 KHQR 支付、内部转账产生的流水由后端自动写入。</div>
+        </section>
+      </div>
+    </main>
+
+    <div class="toast" id="toast"></div>
+
+    <script>
+      "use strict";
+
+      var state = { customers: [], current: null, timer: null };
+
+      function toast(msg, isErr) {
+        var el = document.getElementById("toast");
+        el.textContent = msg;
+        el.className = "toast show" + (isErr ? " err" : "");
+        clearTimeout(toast._t);
+        toast._t = setTimeout(function () { el.className = "toast"; }, 2600);
+      }
+
+      function api(path, options) {
+        return fetch(path, options).then(function (res) {
+          return res.json().catch(function () { return {}; }).then(function (data) {
+            if (!res.ok || data.ok === false) {
+              var err = new Error(data.message || data.error || ("HTTP " + res.status));
+              err.code = data.code;
+              throw err;
+            }
+            return data;
+          });
+        });
+      }
+
+      function money(n, cur) {
+        var v = Number(n || 0);
+        var s = cur === "KHR"
+          ? v.toLocaleString("en-US", { maximumFractionDigits: 0 })
+          : v.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        return (cur === "KHR" ? "៛" : "$") + s;
+      }
+
+      function timeLabel(iso) {
+        if (!iso) return "—";
+        var d = new Date(iso);
+        if (isNaN(d.getTime())) return iso;
+        var p = function (x) { return String(x).padStart(2, "0"); };
+        return d.getFullYear() + "-" + p(d.getMonth() + 1) + "-" + p(d.getDate()) + " " + p(d.getHours()) + ":" + p(d.getMinutes());
+      }
+
+      function initials(name) {
+        return String(name || "?").trim().slice(0, 1).toUpperCase();
+      }
+
+      function renderList() {
+        var box = document.getElementById("list");
+        document.getElementById("count").textContent = state.customers.length;
+        if (!state.customers.length) {
+          box.innerHTML = '<div class="empty">还没有客户。点右上角「新增客户」创建第一条记录。</div>';
+          return;
+        }
+        box.innerHTML = state.customers.map(function (c) {
+          var active = state.current && state.current.customer.id === c.id ? " active" : "";
+          return '<button class="row' + active + '" data-id="' + c.id + '">' +
+            '<span class="avatar">' + initials(c.name) + "</span>" +
+            '<span class="who"><b>' + esc(c.name) + "</b><span>" +
+            esc(c.phone || c.bakongAccount || c.id) + "</span></span>" +
+            '<span class="meta">' + (c.accountCount || 0) + " 个账户</span></button>";
+        }).join("");
+      }
+
+      function esc(s) {
+        return String(s === undefined || s === null ? "" : s)
+          .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+      }
+
+      function renderDetail() {
+        var d = state.current;
+        var card = document.getElementById("detail");
+        if (!d) { card.hidden = true; return; }
+        card.hidden = false;
+        var c = d.customer;
+        document.getElementById("detailName").textContent = c.name;
+
+        var stats = '<div class="stat"><span>客户 ID</span><b style="font-size:13px">' + esc(c.id) + "</b></div>" +
+          '<div class="stat"><span>KYC</span><b style="font-size:14px">' + esc(c.kycStatus) + "</b></div>" +
+          '<div class="stat"><span>流水笔数</span><b>' + ((d.summary && d.summary.transactionCount) || 0) + "</b></div>";
+
+        var byCur = (d.summary && d.summary.byCurrency) || {};
+        Object.keys(byCur).forEach(function (cur) {
+          var s = byCur[cur];
+          stats += '<div class="stat"><span>' + cur + ' 收入 / 支出</span><b style="font-size:14px">' +
+            money(s.inAmount, cur) + " / " + money(s.outAmount, cur) + "</b></div>";
+        });
+        document.getElementById("stats").innerHTML = stats;
+
+        var acc = document.getElementById("accounts");
+        acc.innerHTML = (d.accounts || []).length
+          ? d.accounts.map(function (a) {
+              return '<div class="row" style="cursor:default"><span class="avatar">' + esc(a.currency) + "</span>" +
+                '<span class="who"><b>' + esc(a.accountId) + "</b><span>" + esc(a.label || "") + "</span></span>" +
+                '<span class="meta"><b style="font-size:14px;color:#101828">' + money(a.balance, a.currency) + "</b></span></div>";
+            }).join("")
+          : '<div class="empty">该客户还没有账户，用下面的表单添加。</div>';
+
+        var sel = document.getElementById("txnAccount");
+        sel.innerHTML = (d.accounts || []).map(function (a) {
+          return '<option value="' + esc(a.accountId) + '">' + esc(a.accountId) + " · " + esc(a.currency) + "</option>";
+        }).join("");
+      }
+
+      function renderTxns(list) {
+        var body = document.getElementById("txns");
+        var empty = document.getElementById("txnEmpty");
+        if (!list || !list.length) {
+          body.innerHTML = "";
+          empty.hidden = false;
+          return;
+        }
+        empty.hidden = true;
+        body.innerHTML = list.map(function (t) {
+          var sign = t.direction === "in" ? "+" : "-";
+          return "<tr><td>" + timeLabel(t.createdAt) + "</td>" +
+            '<td><span class="pill">' + esc(t.kind) + "</span></td>" +
+            "<td>" + esc(t.counterparty || t.counterpartyAccount || "—") + "</td>" +
+            '<td class="amt ' + t.direction + '">' + sign + money(t.amount, t.currency) + "</td>" +
+            "<td>" + esc(t.status) + "</td>" +
+            "<td style=\"color:#667085\">" + esc(t.ref) + "</td></tr>";
+        }).join("");
+      }
+
+      function loadCustomers() {
+        var q = document.getElementById("q").value.trim();
+        var path = "/api/customers?limit=100" + (q ? "&q=" + encodeURIComponent(q) : "");
+        return api(path).then(function (d) {
+          state.customers = d.customers || [];
+          renderList();
+        }).catch(function (e) {
+          toast(e.message, true);
+        });
+      }
+
+      function openCustomer(id) {
+        return api("/api/customers/" + encodeURIComponent(id)).then(function (d) {
+          state.current = d;
+          renderList();
+          renderDetail();
+        }).then(function () {
+          return api("/api/customers/" + encodeURIComponent(id) + "/transactions?limit=100");
+        }).then(function (d) {
+          renderTxns(d.transactions || []);
+        }).catch(function (e) {
+          toast(e.message, true);
+        });
+      }
+
+      document.getElementById("q").addEventListener("input", function () {
+        clearTimeout(state.timer);
+        state.timer = setTimeout(loadCustomers, 300);
+      });
+      document.getElementById("btnRefresh").addEventListener("click", function () {
+        loadCustomers();
+        if (state.current) openCustomer(state.current.customer.id);
+      });
+      document.getElementById("btnNew").addEventListener("click", function () {
+        var card = document.getElementById("newCard");
+        card.hidden = !card.hidden;
+        if (!card.hidden) card.querySelector("input[name=name]").focus();
+      });
+
+      document.getElementById("list").addEventListener("click", function (ev) {
+        var row = ev.target.closest(".row");
+        if (row && row.dataset.id) openCustomer(row.dataset.id);
+      });
+
+      document.getElementById("newForm").addEventListener("submit", function (ev) {
+        ev.preventDefault();
+        var f = ev.target;
+        var payload = {};
+        ["name", "phone", "email", "nationalId", "bakongAccount", "kycStatus"].forEach(function (k) {
+          payload[k] = f.elements[k].value.trim();
+        });
+        api("/api/customers", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        }).then(function (d) {
+          toast("已创建客户 " + d.customer.name);
+          f.reset();
+          document.getElementById("newCard").hidden = true;
+          return loadCustomers().then(function () { return openCustomer(d.customer.id); });
+        }).catch(function (e) { toast(e.message, true); });
+      });
+
+      document.getElementById("accountForm").addEventListener("submit", function (ev) {
+        ev.preventDefault();
+        if (!state.current) return;
+        var f = ev.target;
+        var payload = {
+          currency: f.elements.currency.value,
+          type: f.elements.type.value,
+          balance: Number(f.elements.balance.value || 0)
+        };
+        api("/api/customers/" + encodeURIComponent(state.current.customer.id) + "/accounts", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        }).then(function (d) {
+          toast("已添加账户 " + d.account.accountId);
+          f.reset();
+          return openCustomer(state.current.customer.id);
+        }).catch(function (e) { toast(e.message, true); });
+      });
+
+      document.getElementById("txnForm").addEventListener("submit", function (ev) {
+        ev.preventDefault();
+        if (!state.current) return;
+        var f = ev.target;
+        var payload = {
+          direction: f.elements.direction.value,
+          accountId: f.elements.accountId.value,
+          amount: Number(f.elements.amount.value || 0),
+          kind: f.elements.kind.value,
+          counterparty: f.elements.counterparty.value.trim(),
+          applyBalance: true
+        };
+        api("/api/customers/" + encodeURIComponent(state.current.customer.id) + "/transactions", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        }).then(function () {
+          toast("流水已写入");
+          f.reset();
+          return openCustomer(state.current.customer.id);
+        }).catch(function (e) { toast(e.message, true); });
+      });
+
+      loadCustomers();
+    </script>
+  </body>
+</html>

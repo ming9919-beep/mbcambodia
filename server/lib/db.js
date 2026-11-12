@@ -87,4 +87,4 @@ async function close() {
   ready = false;
 }
 
-module.exports = { enabled, init, loadState, saveState, status, close };
+module.exports = { enabled, init, loadState, saveState, status, close, getPool };

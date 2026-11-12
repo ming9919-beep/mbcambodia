@@ -8,6 +8,7 @@ const url = require("url");
 const config = require("./config");
 const bakong = require("./lib/bakong");
 const store = require("./lib/store");
+const customers = require("./lib/customers");
 
 const MIME = {
   ".html": "text/html; charset=utf-8",
@@ -252,6 +253,7 @@ async function handleApi(req, res, pathname, query) {
       ok: true,
       bakong: bakong.info(),
       storage: store.storageMode(),
+      customers: store.customerStorageMode(),
       time: Date.now()
     });
   }
@@ -390,6 +392,68 @@ async function handleApi(req, res, pathname, query) {
   }
 
   /* ---- 内部转账 ---- */
+
+  /* ---- 客户资料 & 每个客户的交易流水（Postgres） ---- */
+
+  // 错误码 → HTTP 状态
+  const customerStatus = (r) => {
+    if (r.ok) return 200;
+    if (r.code === "DB_UNAVAILABLE") return 503;
+    if (r.code === "NOT_FOUND") return 404;
+    if (r.code === "DUPLICATE" || r.code === "DUPLICATE_ACCOUNT") return 409;
+    return 400;
+  };
+
+  if (pathname === "/api/customers") {
+    if (req.method === "GET") {
+      const r = await customers.listCustomers({ q: query.q, limit: query.limit });
+      return send(res, customerStatus(r), r);
+    }
+    if (req.method === "POST") {
+      const body = await readBody(req);
+      const r = await customers.createCustomer(body);
+      return send(res, r.ok ? 201 : customerStatus(r), r);
+    }
+  }
+
+  const customerMatch = pathname.match(/^\/api\/customers\/([A-Za-z0-9_-]+)(?:\/(accounts|transactions|summary))?$/);
+  if (customerMatch) {
+    const customerId = decodeURIComponent(customerMatch[1]);
+    const sub = customerMatch[2];
+
+    if (!sub && req.method === "GET") {
+      const r = await customers.getCustomer(customerId);
+      return send(res, customerStatus(r), r);
+    }
+    if (!sub && (req.method === "PATCH" || req.method === "POST" || req.method === "PUT")) {
+      const body = await readBody(req);
+      const r = await customers.updateCustomer(customerId, body);
+      return send(res, customerStatus(r), r);
+    }
+    if (sub === "accounts" && req.method === "POST") {
+      const body = await readBody(req);
+      const r = await customers.addAccount(customerId, body);
+      return send(res, r.ok ? 201 : customerStatus(r), r);
+    }
+    if (sub === "accounts" && req.method === "GET") {
+      const r = await customers.getCustomer(customerId);
+      if (!r.ok) return send(res, customerStatus(r), r);
+      return send(res, 200, { ok: true, accounts: r.accounts });
+    }
+    if (sub === "summary" && req.method === "GET") {
+      const r = await customers.customerSummary(customerId);
+      return send(res, customerStatus(r), r);
+    }
+    if (sub === "transactions" && req.method === "GET") {
+      const r = await customers.listTransactions(customerId, { limit: query.limit });
+      return send(res, customerStatus(r), r);
+    }
+    if (sub === "transactions" && req.method === "POST") {
+      const body = await readBody(req);
+      const r = await customers.recordTransaction(Object.assign({}, body, { customerId }));
+      return send(res, r.ok ? 201 : customerStatus(r), r);
+    }
+  }
 
   if (req.method === "GET" && pathname === "/api/internal/accounts") {
     return send(res, 200, { accounts: store.listAccounts() });
