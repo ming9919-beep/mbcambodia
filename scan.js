@@ -286,7 +286,6 @@
     syncCurrencySwitch(toCur);
     sizeAmountInput();
     refreshAmountState();
-    if (pfRate) pfRate.textContent = rateLabel();
   }
 
   if (pfCurUsd) pfCurUsd.addEventListener("click", function () { switchCurrency("USD"); });
@@ -751,7 +750,7 @@
     refreshAmountState();
     pfConfirmBtn.disabled = false;
     pfConfirmBtn.textContent = "Confirm";
-    if (pfRate) pfRate.textContent = rateLabel();
+    refreshRateLine();
     pfSumFrom.textContent = fromAccount.id ? fromAccount.id + " | " + fromAccount.currency : "";
     pfSuccessFrom.textContent = pfSumFrom.textContent;
 
@@ -827,6 +826,18 @@
     return "";
   }
 
+  // 汇率行：始终显示当前汇率；输入金额后追加「收款方到账」的折算金额
+  function refreshRateLine() {
+    if (!pfRate) return;
+    var currency = state.current && state.current.currency ? state.current.currency : "USD";
+    var value = readAmount();
+    var text = rateLabel();
+    if (value > 0 && isFinite(value)) {
+      text += " \u00b7 \u2248 " + currencyAmount(convertAmount(value, currency), otherCurrency(currency));
+    }
+    pfRate.textContent = text;
+  }
+
   function refreshAmountState() {
     var error = amountError();
     if (pfAmountHint) {
@@ -834,6 +845,7 @@
       pfAmountHint.hidden = !error;
     }
     pfNext.disabled = !!error || !(readAmount() > 0);
+    refreshRateLine();
   }
 
   function openBakong() {
