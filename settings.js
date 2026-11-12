@@ -9,12 +9,14 @@
   var languageOptions = Array.prototype.slice.call(
     languageLayer.querySelectorAll("[data-language-option]")
   );
-  var languageNames = { en: "English", vi: "Tiếng Việt", km: "ភាសាខ្មែរ" };
+  var languageNames = { en: "English", vi: "Tiếng Việt", km: "ភាសាខ្មែរ", zh: "中文" };
   var selectedLanguage = "en";
   try {
     var savedLanguage = localStorage.getItem("mb_lang");
-    if (savedLanguage === "en" || savedLanguage === "vi" || savedLanguage === "km") selectedLanguage = savedLanguage;
-  } catch (e) {}
+    if (savedLanguage === "en" || savedLanguage === "vi" || savedLanguage === "km" || savedLanguage === "zh") selectedLanguage = savedLanguage;
+  } catch (e) {
+    /* ignore unavailable storage */
+  }
   var languageTrigger = null;
   var toastTimer = 0;
   var languageCloseTimer = 0;
@@ -26,6 +28,10 @@
     toastTimer = window.setTimeout(function () {
       toast.classList.remove("show");
     }, 2100);
+  }
+
+  function t(text) {
+    return window.mbI18n && window.mbI18n.t ? window.mbI18n.t(text) : text;
   }
 
   function openSettings() {
@@ -71,7 +77,7 @@
     if (languageLayer.hidden) return;
     languageLayer.classList.remove("open");
     languageLayer.setAttribute("aria-hidden", "true");
-    if (save) showToast(languageNames[selectedLanguage] + " selected");
+    if (save) showToast(t("Language changed") + " · " + languageNames[selectedLanguage]);
     languageCloseTimer = window.setTimeout(function () {
       languageLayer.hidden = true;
       if (languageTrigger && page.classList.contains("open")) languageTrigger.focus();
@@ -110,7 +116,7 @@
         openLanguagePicker(action);
         return;
       }
-      showToast(action.getAttribute("data-settings-action") + " is a demo setting");
+      showToast(t("This is a demo setting.") + " · " + action.getAttribute("data-settings-action"));
       return;
     }
 

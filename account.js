@@ -42,7 +42,7 @@
   }
 
   function referenceCode(ref) {
-    return String(ref == null ? "" : ref).replace(/^(?:DEMO-|demo_)/i, "");
+    return String(ref == null ? "" : ref).replace(/^(?:DEMO-|demo_|instant_)/i, "");
   }
 
   // 演示交易没有后端返回的 External Txn Ref 时，按交易号生成一个稳定的 8 位十六进制参考号

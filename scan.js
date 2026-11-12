@@ -138,7 +138,7 @@
   // 全站唯一的 USD<->KHR 汇率：换算与界面文案都从这里出，改汇率只改这一行
   var USD_KHR_RATE = 4083;
 
-  // 界面上的汇率文案由这个常量生成，避免数字再抄一遍
+  // "1 USD = 4,083.00 KHR"，由上面的常量生成，避免文案再抄一遍数字
   function rateLabel() {
     var text = USD_KHR_RATE.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
     return "1 USD = " + text + " KHR";
@@ -248,7 +248,9 @@
   }
 
   function displayTransactionCode(ref) {
-    return String(ref || "").replace(/^(?:DEMO-|demo_)/i, "").replace(/^M(?=B)/i, "");
+    return String(ref || "")
+      .replace(/^(?:DEMO-|demo_|instant_)/i, "")
+      .replace(/^M(?=B)/i, "");
   }
 
   function bankMark(bank) {
@@ -661,10 +663,18 @@
     "angkor.travel@acleda": "000889900112"
   };
 
-  function displayRecipientAccount(account) {
+  // 收款人姓名 → 真实银行账号：二维码/Bakong 有时只给账号别名（如 emnykhpp…@bank），
+  // 按姓名补全收款人的真实银行账号，页面上展示真实账号而非 Bakong 别名
+  var RECIPIENT_ACCOUNTS_BY_NAME = {
+    "thoeurn saroeun": "0668557888"
+  };
+
+  function resolveRecipientAccount(name, account) {
     var raw = String(account || "");
-    if (!raw) return "";
-    // 先查别名映射表（演示用的 Bakong 别名 → 真实账号）
+    // 优先按收款人姓名补全真实银行账号
+    var byName = RECIPIENT_ACCOUNTS_BY_NAME[String(name || "").trim().toLowerCase()];
+    if (byName) return byName;
+    // 再查别名映射表（演示用的 Bakong 别名 → 真实账号）
     var mapped = RECIPIENT_ACCOUNTS[raw.toLowerCase()];
     if (mapped) return mapped;
     // Bakong 账户格式 xxx@domain，只显示 @ 前面的账号部分，
@@ -676,13 +686,20 @@
     return raw;
   }
 
+  // 兼容旧调用：只有账号、拿不到收款人姓名时走别名/Bakong 解析
+  function displayRecipientAccount(account) {
+    return resolveRecipientAccount("", account);
+  }
+
   function recipientAccountText(info) {
+    var name = (info && (info.merchant || (info.recipient && info.recipient.fullName))) || "";
     var account = info && (
       info.merchantAccount || info.accountId || info.account || info.bakongAccountId || info.merchantId
     );
     if (account && typeof account === "object") account = account.id || account.accountId || "";
     if (!account && info && info.raw) account = bakongAccountFromQr(info.raw);
-    return account ? "Recipient account: " + displayRecipientAccount(account) : "Recipient account unavailable";
+    var display = resolveRecipientAccount(name, account);
+    return display ? "Recipient account: " + display : "Recipient account unavailable";
   }
 
   // 默认沿用第一个 USD 账户，同时保留所有账户供用户切换。
@@ -720,19 +737,16 @@
       recipientName = "KHQR Merchant";
     }
     pfMerchant.textContent = recipientName;
-    var verified = info.recipient && info.recipient.exists
-      ? " · Bakong verified" + (info.recipient.kycStatus ? " · " + info.recipient.kycStatus : "")
-      : "";
     pfConfirmMerchant.textContent = recipientName;
     pfSuccessMerchant.textContent = recipientName;
     var accountId = String(info.accountId || info.account || info.bakongAccountId || "");
-    pfConfirmBank.textContent = recipientAccountText(info) + verified;
+    // 只显示收款账号，不附加 Bakong verified / KYC 状态
+    pfConfirmBank.textContent = recipientAccountText(info);
     var billAccount = String(info.merchantId || accountId || "");
+    var billDisplay = resolveRecipientAccount(recipientName, billAccount);
     if (pfBillBank) {
       // 只显示收款账号，不附加 Bakong verified / KYC 状态
-      pfBillBank.textContent = billAccount
-        ? "Account: " + displayRecipientAccount(billAccount)
-        : "";
+      pfBillBank.textContent = billDisplay ? "Account: " + billDisplay : "";
     }
     var markLogo = bankLogoSrc(info);
     paintMark(pfConfirmToMark, markLogo, bank);
@@ -928,8 +942,10 @@
       if (payment.recipientBank && payment.recipientBank.name) {
         var _acct = (state.current && (state.current.accountId || state.current.account)) || "";
         var _mid = (state.current && state.current.merchantId) || payment.merchantId || "";
+        var _name = (state.current && state.current.merchant) || payment.merchant || "";
         var _recipientAcct = _mid || _acct;
-        pfSuccessBank.textContent = _recipientAcct ? "Account: " + displayRecipientAccount(_recipientAcct) : "";
+        var _acctDisplay = resolveRecipientAccount(_name, _recipientAcct);
+        pfSuccessBank.textContent = _acctDisplay ? "Account: " + _acctDisplay : "";
         pfConfirmBank.textContent = recipientAccountText(Object.assign({}, state.current || {}, {
           merchantId: payment.merchantId || payment.merchantAccount ||
             (payment.recipientAccount && (payment.recipientAccount.id || payment.recipientAccount)) ||
@@ -1008,7 +1024,8 @@
       note: note,
       merchantId: (state.current && state.current.merchantId) || "",
       counterpartyName: payment.merchant || (state.current && state.current.merchant) || "",
-      counterpartyAccount: displayRecipientAccount(
+      counterpartyAccount: resolveRecipientAccount(
+        payment.merchant || (state.current && state.current.merchant) || "",
         (state.current && (state.current.merchantId || state.current.accountId || state.current.account)) || ""
       ),
       bank: (payment.recipientBank && payment.recipientBank.name) ||
@@ -1038,7 +1055,9 @@
     pfSuccessFrom.textContent = fromAccount.id + " | " + fromAccount.currency;
     pfSuccessMerchant.textContent = payment.merchant || "";
     var recipientAccount = merchantId || accountId;
-    pfSuccessBank.textContent = recipientAccount ? "Account: " + displayRecipientAccount(recipientAccount) : "";
+    var recipientNameSuccess = payment.merchant || (state.current && state.current.merchant) || "";
+    var recipientDisplay = resolveRecipientAccount(recipientNameSuccess, recipientAccount);
+    pfSuccessBank.textContent = recipientDisplay ? "Account: " + recipientDisplay : "";
     var bankInfoForLogo = Object.assign({}, state.current || {}, { bank: recipientBank });
     paintMark(
       pfSuccessBankMark,
